@@ -38,3 +38,15 @@ flights |>
   summarize(prop_late = mean(late)) |> 
   arrange(desc(prop_late))
 
+
+flights_jfk <- flights |> 
+  filter(origin == "JFK")
+
+flight_selected <- flights |> 
+  select(origin, dest, carrier, late)
+
+flights_s2 <- flights |> 
+  select(-year)
+
+flights_s3 <- flights |> 
+  select(dep_time:carrier, origin, dest)
