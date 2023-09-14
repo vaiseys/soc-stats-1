@@ -1,14 +1,14 @@
 library(tidyverse)
 theme_set(theme_minimal())
 
-# set up simulation
-num_sims <- 500      # how many do I want to do?
-poll_size <- 900   # number of people in each "poll"
+# set up simulation "dresser"
+num_sims <- 500    # how many do I want to do?
+poll_size <- 300   # number of people in each "poll"
 
 sims <- tibble(sim_num = 1:num_sims) |> 
   uncount(poll_size)
 
-# inspect simulation "skeleton"
+# inspect simulation "dresser"
 sims
 
 # draw the samples
@@ -48,4 +48,18 @@ ggplot(results,
            fill = winner)) +
          geom_histogram(color = "white",
                         boundary = .5,
-                        binwidth = .01) 
+                        binwidth = .01) +
+  scale_fill_viridis_d()
+
+# box plot
+ggplot(results,
+       aes(x = dem_prop)) +
+  geom_boxplot()
+
+# strip plot
+ggplot(results,
+       aes(x = dem_prop,
+           y = "")) +
+  geom_boxplot(outlier.color = NA) +
+  geom_jitter(alpha = .2)
+  
