@@ -25,7 +25,7 @@ prop_polviews
 ggplot(prop_polviews,
        aes(x = polviews,
            y = prop)) +
-  geom_bar(stat = "identity")
+  geom_col()
 
 gss_polviews <- gss18 |> 
   select(polviews) |> 
@@ -62,10 +62,9 @@ ggplot(sims,
 # TAKE HOME POINT: even if we KNOW exactly what the population parameter is
 # we will still experience variability in the realized samples
 
-# since we don't know the true p, what can we say about it?
-sample_from_gss <- sample_n(gss_polviews,
-                            size = nrow(gss_polviews),
-                            replace = TRUE)
+# let's characterize the simulation results
+mean(sims$prop)
+sd(sims$prop)
 
 
 
