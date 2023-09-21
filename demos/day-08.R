@@ -1,11 +1,10 @@
 library(tidyverse)
 theme_set(theme_light())
 
-
 # Law of Large Numbers
 lln_sim <- tibble(
   n = 2^(3:14),
-  est_prop = rbinom(12, n, .33) / n
+  est_prop = rbinom(12, n, .5) / n
 )
 
 ggplot(lln_sim,
@@ -13,7 +12,7 @@ ggplot(lln_sim,
            y = est_prop)) +
   geom_line(alpha = .8) +
   geom_point(alpha = .2) +
-  geom_hline(yintercept = .33,
+  geom_hline(yintercept = .5,
              linetype = "dashed",
              alpha = .2) +
   ylim(.2, .6)
@@ -50,7 +49,7 @@ ggplot(sims,
        aes(x = prop)) +
   geom_density(color = NA,
                fill = "blue",
-               alpha = .2) +
+               alpha = .5) +
   scale_x_continuous(breaks = seq(.3, .4, .01)) # don't worry too much
 
 # let's characterize the simulation results
@@ -81,8 +80,49 @@ ci99
 
 # <YOUR SIMULATION HERE>
 
+# way 1
+locs <- tibble(
+  pid = 1:100) |> 
+  rowwise() |> 
+  mutate(loc = 50 + sum(sample(c(-1,1), 50, replace = TRUE)))
+
+# way 2
+foot_sims <- tibble(
+  pid = 1:100
+) |> 
+  uncount(50) |> 
+  mutate(flip = sample(c(-1,1),
+                       replace = TRUE,
+                       size = 5000, 
+                       prob = c(.5, .5))) |> 
+  group_by(pid) |> 
+  summarize(location = sum(flip) + 50)
+
+# way 3
+foot_sims <- 
+  expand_grid(person_id = 1:1000,
+              flip_id = 1:50) |> 
+  mutate(flip = sample(c(-1,1),
+                       replace = TRUE,
+                       size = 50000, 
+                       prob = c(.5, .5))) |>
+  group_by(person_id) |> 
+  summarize(location = sum(flip) + 50)
+
+# plot
+ggplot(foot_sims,
+       aes(x = location)) +
+  geom_bar()
+
+
+
+
+
+
 # central limit theorem: things get normal
 # "analytic" CI for proportion
+  
+
 
 
 
