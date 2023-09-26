@@ -114,11 +114,6 @@ ggplot(foot_sims,
        aes(x = location)) +
   geom_bar()
 
-
-
-
-
-
 # central limit theorem: things get normal
 # "analytic" CI for proportion
   
