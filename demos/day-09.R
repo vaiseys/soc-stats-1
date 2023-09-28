@@ -86,8 +86,15 @@ hyp_327
 
 hyp_328 / hyp_327
 
+hyp_50 <- dbinom(737, 2247, .5)
 
+hyp_33 / hyp_50
 
-
-
-
+# plot likelihoods
+# fool around with the sizes
+ggplot() +
+  xlim(c(0,1)) +
+  geom_function(fun = \(prob) dbinom(x = 7,
+                                  size = 22,
+                                  prob = prob))
+  
