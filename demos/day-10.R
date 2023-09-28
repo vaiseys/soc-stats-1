@@ -7,8 +7,7 @@ plot <- ggplot() +
   geom_function(fun = \(prob) dbinom(x = 7,
                                      size = 22,
                                      prob = prob),
-                n = 1001)
-
+                n = 1000)
 plot
 
 # simulation confint
@@ -27,6 +26,11 @@ qbinom(p = c(.025, .975),
        size = 22,
        prob = 7/22)
 
+## so you can see
+ggplot(sims,
+       aes(x = successes)) +
+  geom_bar()
+
 ## divide by denom for probabilities
 qbinom(p = c(.025, .975), 
        size = 22,
@@ -34,7 +38,6 @@ qbinom(p = c(.025, .975),
 
 # this is "lumpy" because the underlying process has a denom of 22, which
 # has nothing to do with the true prob. in the world! The options:
-0:22 / 22
 
 # plot
 ## save CI as a vector
@@ -45,16 +48,16 @@ ci <- qbinom(p = c(.025, .975),
 ## add to plot above
 ## see how it's lopsided?
 plot + geom_vline(xintercept = ci,
-               linetype = "dashed")
+                  linetype = "dashed")
 
 # calculate with CLT
 ## try replacing the 7 with smaller or larger numbers (e.g., 1); what happens
-p <- 7/22
-sd <- sqrt(p * (1 - p))
+phat <- 7/22
+sd <- sqrt(phat * (1 - phat))
 se <- sd / sqrt(22)
 
-ub <- p + 1.96*se
-lb <- p - 1.96*se
+ub <- phat + 1.96*se
+lb <- phat - 1.96*se
 
 ci_clt <- c(lb, ub)
 ci_clt
@@ -62,18 +65,35 @@ ci_clt
 # likelihood based grid approximation
 ## reminder: what is an integral? why does it matter here?
 likelihoods <- tibble(
-  prob = seq(from = .001,
-             to =   .999,
-             by =   .001)) |> 
-  mutate(ll = dbinom(7, 22, prob),
-         cll = cumsum(ll) / sum(ll))
+  prob = seq(from = 0,
+             to =   1,
+             by =    .001)) |> 
+  mutate(like = dbinom(7, 22, prob),
+         clike_raw = cumsum(like),
+         clike_normalized = clike_raw / sum(like))
+
+ggplot(likelihoods,
+       aes(x = prob,
+           y = like)) +
+  geom_line()
+
+ggplot(likelihoods,
+       aes(x = prob,
+           y = clike_raw)) +
+  geom_line()
+
+ggplot(likelihoods,
+       aes(x = prob,
+           y = clike_normalized)) +
+  geom_line()
 
 # get the CI
-likelihoods|> 
-  filter(cll >= .025 & cll <= .975) |> 
+ll_ci <- likelihoods|> 
+  filter(clike_normalized >= .025 & 
+           clike_normalized <= .975) |> 
   summarize(lb = min(prob),
             ub = max(prob)) |> 
-  as.numeric() -> ll_ci
+  as.numeric()
 
 ll_ci # here it is
 
@@ -87,9 +107,3 @@ plot + geom_vline(xintercept = ll_ci,
 ## alternative value (e.g., <.5)
 ## alpha level (e.g., .05); the complement of the CI width
 ## simple version: does the CI overlap a null value?
-
-## more complex: resampling from original data
-mydata <- tibble(
-  conservative = c(rep(1, 7),
-                   rep(0, 15))
-)
