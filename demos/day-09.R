@@ -41,7 +41,7 @@ ggplot(bin_probs,
 # convert heads into locations
 bin_probs <- bin_probs |> 
   mutate(people = probability*npeople,
-         location = (heads-(.5*nflips))*2 + 50 )
+         location = (heads - (.5*nflips))*2 + 50 )
 
 # collapsing down the simulated data
 # "how many people at each location on the field?"
