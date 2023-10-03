@@ -101,9 +101,3 @@ ll_ci # here it is
 ## see how it's more symmetrical?
 plot + geom_vline(xintercept = ll_ci,
                linetype = "dashed")
-
-# hypothesis testing
-## null value (e.g., .5)
-## alternative value (e.g., <.5)
-## alpha level (e.g., .05); the complement of the CI width
-## simple version: does the CI overlap a null value?
