@@ -7,8 +7,8 @@ theme_set(theme_light())
 
 # pretend "original" data (n = 75)
 d <- tibble(
-  republican = c(rep(0,45),                       # Rep. voter (rep() means repeat though!)
-                 rep(1,30))                       # Dem. voter
+  republican = c(rep(0,45),                       # Dem. voter (rep() means repeat though!)
+                 rep(1,30))                       # Rep. voter
 )
 
 # point estimate ("maximum likelihood")
@@ -61,7 +61,7 @@ ggplot(nulls,
              linetype = "dashed")
 
 # how many times do we get a result as low as the real data if null is true?
-pvalue <- nrow(filter(nulls, null_prop < mean(d$republican))) /
+pvalue <- nrow(filter(nulls, null_prop <= mean(d$republican))) /
   nrow(nulls)
 pvalue
 
@@ -91,7 +91,7 @@ d |>
 ## CI of the difference
 
 ### define function
-resample_diff <- function(x) {
+resample_diff <- function() {
   # get male proportion conservative
   pm <- mean(sample(d$conservative[d$female==0],
                     size = length(d$conservative[d$female==0]),
@@ -119,6 +119,9 @@ ggplot(resamples,
              color = "firebrick",
              linetype = "dashed")
 
+### the numbers
+quantile(resamples$diff, c(.025, .975))
+
 ## hypothesis test
 ### things we need to do the null distribution
 obs_prop <- mean(d$conservative)
@@ -126,7 +129,7 @@ n_males <- nrow(filter(d, female == 0))
 n_females <- nrow(filter(d, female == 1))
 
 ### the null distribution (i.e., where the difference is really zero)
-null_diff <- function(x) {
+null_diff <- function() {
   mean(rbinom(n_males, 1, obs_prop)) -
     mean(rbinom(n_females, 1, obs_prop))
 }
@@ -152,7 +155,7 @@ ggplot(nulls,
 
 ### p-value
 pvalue <- 
-  nrow(filter(nulls, diff > obs_diff)) /
+  nrow(filter(nulls, diff >= obs_diff)) /
   nrow(nulls)
 
 pvalue*2
