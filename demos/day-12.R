@@ -35,7 +35,9 @@ d |>
 # diff in props
 ## confint
 set.seed(12345)
-boot_dist <- d |> 
+
+boot_dist <- 
+  d |> 
   specify(weekly ~ sex) |> 
   generate(reps = 1000,
            type = "bootstrap") |> 
@@ -53,11 +55,12 @@ boot_dist |>
 
 ## h test
 ## new concept: permutation
-obs_diff = mean(d$weekly[d$sex=="Female"]) - mean(d$weekly[d$sex=="Male"])
+obs_diff = mean(d$weekly[d$sex=="Female"]) - 
+  mean(d$weekly[d$sex=="Male"])
 
 null_dist <- d |> 
   specify(weekly ~ sex) |> 
-  hypothesise(null = "independence") |> 
+  hypothesize(null = "independence") |> 
   generate(reps = 1000,
            type = "permute") |> 
   calculate(stat = "diff in means",
@@ -78,10 +81,7 @@ d <- d |>
   mutate(church = if_else(weekly == 1, "Weekly", "Less Often"))
 
 d |> 
-  tabyl(sex)
-
-d |> 
-  tabyl(church)
+  tabyl(sex, church)
 
 ## expected values under independence
 0.5510292*0.7770154 * nrow(d)
@@ -104,7 +104,6 @@ d |>
 obs_chi_square <- d |> 
   specify(church ~ sex,
           success = "Weekly") |>
-  hypothesise(null = "independence") |> 
   calculate(stat = "Chisq")
 obs_chi_square
 
