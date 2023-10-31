@@ -3,7 +3,7 @@ library(infer)
 library(janitor)
 theme_set(theme_light())
 
-# 4x3 table; marginal, joint, conditional probability
+# 5x3 table; marginal, joint, conditional probability
 
 ## data prep
 library(gssr)
@@ -25,12 +25,21 @@ tabyl(d1, degree, natenvir) |>
 
 ## rowwise conditional probabilities
 tabyl(d1, degree, natenvir) |> 
-  adorn_percentages() |> 
+  adorn_percentages(denominator = "row") |> 
+  adorn_pct_formatting(digits = 0)
+
+## columnwise conditional probabilities
+tabyl(d1, degree, natenvir) |> 
+  adorn_percentages(denominator = "col") |> 
   adorn_pct_formatting(digits = 0)
 
 ## chi2
-tabyl(d1, degree, natenvir) |> 
+x2 <- tabyl(d1, degree, natenvir) |> 
   chisq.test()
+x2
+
+x2$observed
+x2$expected
 
 # four ways of quantifying dependence
 ## data prep
