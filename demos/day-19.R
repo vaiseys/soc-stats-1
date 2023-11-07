@@ -32,10 +32,14 @@ d |>
 
 ### GOF 2: linktest ####
 
+lt0 <- glm(admitted ~ pred_log_odds,
+           data = d,
+           family = binomial)
+tidy(lt0)
+
 lt1 <- glm(admitted ~ pred_log_odds + I(pred_log_odds^2),
            data = d,
            family = binomial)
-
 tidy(lt1)
 
 
@@ -76,6 +80,39 @@ ggplot(numarts,
   geom_line()
 
 # adding predictors (TBD in class)
+m2 <- glm(art ~ hipubment,
+          data = d,
+          family = poisson)
+tidy(m2)
+
+m3 <- glm(art ~ mentor + female + married + phdcat,
+          data = d,
+          family = poisson)
+tidy(m3)
+
+m4 <- glm(art ~ mentor + female + married + factor(phdcat),
+          data = d,
+          family = poisson)
+tidy(m4)
 
 
+m5 <- glm(art ~ mentor + female * married + kid5 + kid5:female + 
+            factor(phdcat),
+          data = d,
+          family = poisson)
+tidy(m5)
 
+m6 <- glm(art ~ mentor + female + married + kid5 + factor(phdcat),
+          data = d,
+          family = poisson)
+tidy(m6)
+
+BIC(m1, m2, m3, m4, m5, m6)
+
+d$pred_log_arts <- predict(m6)
+lt6 <- glm(art ~ pred_log_arts + I(pred_log_arts^2),
+           data = d,
+           family = poisson)
+tidy(lt6)
+
+check_model(m6)
