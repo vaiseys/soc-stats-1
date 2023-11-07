@@ -1,8 +1,6 @@
 library(tidyverse)
-library(janitor)
 library(here)
 library(broom)
-library(performance)
 
 d <- haven::read_dta(here("data", "admissions.dta")) |> 
   haven::zap_labels()
