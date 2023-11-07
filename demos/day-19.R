@@ -2,7 +2,6 @@ library(tidyverse)
 library(here)
 library(broom)
 library(performance)
-library(janitor)
 theme_set(theme_light())
 
 d <- haven::read_dta(here("data", "admissions.dta")) |> 
