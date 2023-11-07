@@ -79,7 +79,7 @@ ggplot(numarts,
            y = value)) +
   geom_line()
 
-# adding predictors (TBD in class)
+# adding predictors
 m2 <- glm(art ~ hipubment,
           data = d,
           family = poisson)
@@ -124,6 +124,11 @@ m7 <- MASS::glm.nb(art ~ mentor + female + married + kid5 + factor(phdcat),
 tidy(m7)
 check_model(m7)
 
+d$pred_m7 <- predict(m7)
+lt7 <- MASS::glm.nb(art ~ pred_m7 + I(pred_m7^2),
+                    data = d)
+tidy(lt7) # still doesn't fit well...
+
 library(modelsummary)
-msummary(list(m6,m7))
+msummary(list(m6,m7)) # very similar coefficient estimates
 
