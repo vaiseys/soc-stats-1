@@ -116,3 +116,14 @@ lt6 <- glm(art ~ pred_log_arts + I(pred_log_arts^2),
 tidy(lt6)
 
 check_model(m6)
+
+### BONUS: Negative Binomial ####
+
+m7 <- MASS::glm.nb(art ~ mentor + female + married + kid5 + factor(phdcat),
+                   data = d)
+tidy(m7)
+check_model(m7)
+
+library(modelsummary)
+msummary(list(m6,m7))
+
