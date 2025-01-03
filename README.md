@@ -1,2 +1,2 @@
 # soc-stats-1
-a collection of stuff for my Soc 722 course
+a very incomplete collection of random stuff for my Soc 722 course
