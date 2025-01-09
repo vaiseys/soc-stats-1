@@ -1,0 +1,425 @@
+---
+title: "Final Exam"
+author: "YOUR NAME HERE"
+format: html
+editor: visual
+embed-resources: true
+message: false
+warning: false
+---
+
+# Read these instructions first!
+
+Answer each question below by modifying this document. Questions are **formatted in bold** to visually distinguish them from your answers, which should be in regular font.
+
+You are allowed to use any resources you would like (e.g., notes, Stack Overflow) *except* for any large language model-based tool (e.g., GitHub Copilot, Microsoft Copilot, ChatGPT). You also may not receive help from any other person during this exam. Although useful in real life, using LLM tools or human help constitutes academic dishonesty for the purposes of this exam.
+
+Follow the directions as they are given for each question. Here are the most common situations that you should treat as defaults:
+
+-   If the question only asks you to do a **coding operation**, just do the coding operation. (You don't need to explain it.)
+
+-   If the question asks you for a **value**, simply provide the value (including the units; e.g., 21.6 miles per gallon) without additional commentary. Round answers to three significant digits or three decimal places, whichever is fewer.
+
+-   If the question asks you to provide an **explanation**, give it in one or more complete sentences, as instructed. Just add the text to the document *below* the code block or the question. Do not add extra verbiage. Unless otherwise stated, you should answer in *no more than 1-2 sentences*. **You will lose points for adding fluff.**
+
+Here are some hints:
+
+-   In any code block where you are using a simulation, be sure to set a random number seed using `set.seed()` so that your results are the same every time you render!
+
+-   To avoid last-minute difficulties with rendering, I suggest rendering the document frequently to make sure the code is working throughout. This way, if you get an error, you will know it's something you did recently.
+
+When you have finished the exam, please render this document to .html and submit **the entire project folder** to **both** Steve and Andrès via direct message on the course Slack workspace. (You can DM both of us in the same message.) The files must be submitted by 1:10pm, which gives you 10 extra minutes to submit.
+
+Good luck!
+
+# Questions
+
+## Data wrangling
+
+**Load any libraries (e.g., packages) that you might need here. You can also set themes or other options. You can't get this "wrong"; this is just for your convenience!**
+
+```{r}
+library(tidyverse)
+library(nycflights13)
+library(gssr)
+library(broom)
+library(ggeffects)
+theme_set(theme_light())
+set.seed(12345)
+```
+
+**Write code that produces a vector of integers from 1 to 50 called `x`.**
+
+```{r}
+x <- 1:50
+```
+
+**Create a version of the `mtcars` data frame that contains only vehicles with 6 cylinders and call it `mtcars6`.**
+
+```{r}
+mtcars6 <- mtcars |> 
+  filter(cyl == 6)
+```
+
+**Use one or more `tidyverse` functions to add a new integer variable called `over20` to `mtcars6` that is coded 1 if the car gets more than 20 miles per gallon and 0 otherwise. Use `glimpse()` to show that you were successful.**
+
+```{r}
+mtcars6 <- mtcars6 |> 
+  mutate(over20 = if_else(mpg > 20, 1L, 0L))
+
+glimpse(mtcars6)
+```
+
+**Let's use a different dataset: the `flights` data from the `nycflights13` package. (You many need to install it. If so, do this in your console.) In the `flights` tibble, every row is a flight that departed from one of the three main NYC airports in 2013.**
+
+**Use `tidyverse` functions to create and display a tibble that shows how many flights left from each of the three `origin` airports that year. Which airport had the most departing flights? How many flights departed from that airport in 2013?**
+
+```{r}
+flights |> 
+  group_by(origin) |> 
+  summarize(numflights = n())
+```
+
+EWR had the most departing flights in 2013, with 120,835.
+
+**Use `tidyverse` functions to create and display a tibble that shows the mean departure delay (`dep_delay`) separately for the three different `origin` airports. (HINT: you will need to exclude flights that are missing data on their departure delay.) Which of the three airports had the shortest mean delay? How long was this average delay?**
+
+```{r}
+flights |> 
+  group_by(origin) |> 
+  summarize(mean_delay = mean(dep_delay, na.rm = TRUE))
+```
+
+LGA had the shortest mean delay of the three airports, with an average of 10.3 minutes.
+
+**Which NYC flight had the longest departure delay in 2013? Answer in a complete sentence, providing the two-letter `carrier` code, the `flight` number, and the `month` and `day` of departure.**
+
+```{r}
+flights |>
+  select(month, day, carrier, flight, dep_delay) |> 
+  arrange(desc(dep_delay))
+```
+
+The longest delay was HA 51, which departed on January 9 and had a departure delay of 1301 minutes.
+
+## Data visualization
+
+**Using the `flights` data, create a bar graph that has two-digit `carrier` codes on the x-axis and the mean delay time on the y-axis. Make sure the bars are sorted by height with the longest delays on the left and the shortest on the right. Make sure to add title and axis labels.**
+
+```{r}
+flights |> 
+  group_by(carrier) |> 
+  summarize(mean_delay = mean(dep_delay, na.rm = TRUE)) |> 
+  ggplot(aes(x = reorder(carrier, desc(mean_delay)),
+             y = mean_delay)) +
+  geom_col() +
+  labs(x = "Carrier",
+       y = "Mean delay time (minutes)",
+       title = "Mean delay time by carrier",
+       caption = "All NYC-based flights in 2013")
+```
+
+**Continuing with the `flights` data, create a scatterplot that shows, for each `carrier`, mean travel time (`air_time`) on the x-axis and mean `dep_delay` on the y-axis. Make the points somewhat transparent. Don't forget title and axis labels.**
+
+```{r}
+flights |> 
+  group_by(carrier) |> 
+  summarize(mean_delay = mean(dep_delay, na.rm = TRUE),
+            mean_airtime = mean(air_time, na.rm = TRUE)) |> 
+  ggplot(aes(x = mean_airtime,
+             y = mean_delay)) +
+  geom_point(alpha = .2) +
+  labs(x = "Mean flight time (minutes)",
+       y = "Mean delay (minutes)",
+       title = "Flight time and delay time")
+```
+
+**Still with the `flights` data, create a grouped box plot that shows the distribution of travel times (`air_time`) separately for each `carrier`. The y-axis should show the carrier codes ordered from top to bottom in terms of their median `air_time` (either sort direction is fine). The x-axis should show the distribution of `air_time` for that carrier. Omit the redundant legend and remember to add a title and axis labels.**
+
+```{r}
+flights |>
+  mutate(med_airtime = median(air_time, na.rm = TRUE),
+         .by = carrier) |> 
+  ggplot(aes(x = air_time,
+             y = reorder(carrier, med_airtime),
+             color = carrier)) +
+  geom_boxplot() +
+  theme(legend.position = "none") +
+  labs(title = "Distribution of air time by carrier",
+       y = "Carrier",
+       x = "Air time (mins)")
+```
+
+## Probability and simulation
+
+**What is the probability of flipping heads 5 times in a row using a fair coin?**
+
+1/32
+
+**If there is a 20% probability that it's going to rain today, what are the odds that it's going to rain today? Use decimal form.**
+
+.25
+
+**Imagine you have a dataset of 1000 respondents and two Bernoulli-distributed variables,** $X$ **and** $Y$. **For** $X$, **there are 500 respondents for whom** $X = 0$ **and 500 for whom** $X = 1$. **For** $Y$, **there are 700 respondents for whom** $Y = 0$ **and 300 respondents for whom** $Y = 1$. **If the two variables are independent, how many respondents should we expect to have both** $X=1$ **and** $Y=1$**?**
+
+150
+
+**Use a simulation to estimate the standard error of** $Y$ **given the dataset in the previous question.**
+
+```{r}
+sims_y <- tibble(
+  id = 1:1e4) |> 
+  rowwise() |> 
+  mutate(est = mean(rbinom(1000, 1, .3)))
+
+sd(sims_y$est) |> round(3)
+```
+
+Estimated via simulation, the standard error of $Y$ is approximately .015. \[could be .014 depending on simulation error.\]
+
+**Use a simulation to estimate a 95% confidence interval for** $X$ **as described above.**
+
+```{r}
+sims_x <- tibble(
+  id = 1:1000) |> 
+  rowwise() |> 
+  mutate(est = mean(rbinom(1000, 1, .5)))
+
+sd(sims_x$est) |> round(3)
+
+quantile(sims_x$est, c(.025, .975))
+```
+
+The simulation-based 95% confidence interval is between .471 and .529. \[or thereabouts\]
+
+**Say you flip a coin 10 times and get heads 7 times. Imagine there are only two possibilities: that this is COIN A, which comes up heads 50% of the time or that this is COIN B, which comes up heads 90% of the time. Which coin is your coin more likely to be? Explain why. BONUS: how much *more* likely is it to be your chosen coin than the alternative?**
+
+```{r}
+likeA <- dbinom(7, 10, .5)
+likeB <- dbinom(7, 10, .9)
+
+likeA/likeB
+```
+
+It is more likely to be coin A. In fact, it's 2.04 times more likely to be coin A than coin B.
+
+## Bivariate statistics
+
+**For the next few questions, we are going to use some 2022 GSS data that I have already pre-created. I have already put the code to load the data in the next block. If, for some reason, you want to see how I created the dataset, check out `gss-maker.R` in this project folder.**
+
+```{r}
+load("gss2022.Rdata")
+```
+
+**For this question, the relevant items are `sex` (self-explanatory) and `weekly`, which indicates whether the respondent goes to religious services at least weekly ("weekly") or does not ("not weekly"). This item is derived from the original variable, `attend`.**
+
+**Consider the *null hypothesis* that males and females have the same probability of going to religious services at least weekly and the *alternative hypothesis* that males and female have different probabilities of going to church weekly. Use an alpha level of .01. Test the null hypothesis using simulation or a theory-based method. Report your conclusion and your reasoning in 1-3 sentences.**
+
+```{r}
+# version 1
+library(janitor)
+gss2022 |> 
+  tabyl(sex, weekly) |> 
+  chisq.test()
+
+# version 2
+gss2022 <- gss2022 |> 
+  mutate(weekly_num = if_else(weekly == "weekly", 1L, 0L))
+
+lm(weekly_num ~ sex,
+   data = gss2022) |> 
+  tidy()
+
+# version 3
+glm(weekly_num ~ sex,
+    family = binomial,
+    data = gss2022) |> 
+  tidy()
+
+# version 4 (need lots of sims for this one!)
+library(infer)
+
+## get the observed diff
+obs_diff <- gss2022 |> 
+  specify(weekly ~ sex,
+          success = "weekly") |> 
+  calculate(stat = "diff in props",
+            order = c("female", "male"))
+
+null_dist <- gss2022 |> 
+  specify(weekly ~ sex,
+          success = "weekly") |> 
+  hypothesize(null = "independence") |> 
+  generate(reps = 2000, type = "permute") |> 
+  calculate(stat = "diff in props",
+            order = c("female", "male"))
+
+null_dist |> get_p_value(obs_stat = obs_diff,
+                         direction = "two-sided")
+```
+
+Based on this test, we can reject the null hypothesis that males and females are equally likely to attend religious services weekly. If this null hypothesis were true, we'd be extremely unlikely to see such a large observed difference. In fact, such a large difference would occur far less often than the 1 in 100 times we decided in setting our alpha level.
+
+**Calculate and interpret any valid odds ratio relating to the 2x2 attendance/sex table. Feel free to use R as a simple calculator if that is easier for you!**
+
+```{r}
+# version 1
+(311*1273) / (1392*205)
+```
+
+Females' odds of attending religious services weekly are 1.39 times greater than men's odds. \[All valid ratios will either be 1.39 or .721.\]
+
+## Logistic regression
+
+**For this section, we are going to keep going with the 2022 GSS data.**
+
+**Estimate a simple logistic regression that predicts weekly religious attendance as a function of whether the respondent has a college degree. Call this model `m_college`. I have already created the `college` variable for you. HINT: you may need to create a numeric version of `weekly` if you have not already done so.**
+
+```{r}
+m_college <- glm(weekly_num ~ college,
+          family = binomial,
+          data = gss2022)
+```
+
+**What is the estimated beta coefficient for `college`? Interpret this coefficient *without transforming* it. Then interpret it using an odds ratio. Then interpret it as a difference in probabilities.**
+
+```{r}
+tidy(m_college)
+
+ggpredict(m_college, terms = "college") |> format(digits = 3)
+```
+
+Those with a college degree have .207 greater log odds of attending weekly. Those with a college degree have odds of attending weekly that are 23% greater than those without a degree. Those with a college degree are 2.9 percentage points more likely to attend weekly than those without a degree.
+
+**Now estimate a logistic regression model that predicts weekly religious attendance as a function of `age` using a quadratic functional form. Call this model `m_age`.**
+
+```{r}
+m_age <- glm(weekly_num ~ age + I(age^2),
+             family = binomial,
+             data = gss2022)
+```
+
+**According to this model, what is the predicted probability that a 30-year-old attends religious services weekly? Answer in one complete sentence.**
+
+```{r}
+ggpredict(m_age, terms = "age [30]") |> format(digits = 3)
+```
+
+The model predicts that a 30-year-old has a 10.4% probability of attending religious services weekly.
+
+**Is `m_age` a better fit to the data than a model that assumes that age and religious attendance are independent? Briefly justify this conclusion and explain why you used the decision rule that you did.**
+
+```{r}
+m_null <- glm(weekly_num ~ 1,
+              family = binomial,
+              data = gss2022)
+
+BIC(m_null, m_age)
+```
+
+The model that includes age fits the data much better than a model that a model that assumes age has no relationship to the outcome. The evidence is that the BIC strongly prefers the model including age. \[Other options include: AIC, likelihood ratio test\]
+
+## Poisson regression
+
+**Below is the output for a Poisson regression model predicting the total number of lifetime sex partners as reported by teenagers between the ages of 13 and 17 in 2002 as part of the National Study of Youth and Religion. According to the model, what is the expected difference in number of partners between male and female respondents?**
+
+| term        | estimate |
+|:------------|---------:|
+| (Intercept) |   -0.029 |
+| female      |   -0.590 |
+
+```{r}
+boys <- exp(-.029)
+girls <- exp(-.029 - .590)
+
+boys - girls
+```
+
+The expected difference is .433 partners.
+
+## Linear regression and correlation
+
+**Below is the output of a linear regression (linear probability model) predicting whether an applicant was admitted to the Duke Sociology PhD program between 2006 and 2011 (1 = admitted; 0 = rejected). The predictors are the standardized (mean = 0, SD = 1) values of undergraduate GPA and the three GRE subscores (verbal, quantitative, analytical). What is the probability of admission for someone with average GPA and scores? What is the 95% confidence interval of this estimate conditional on the model and the data?**
+
+| term        | estimate | std.error |
+|:------------|---------:|----------:|
+| (Intercept) |    0.164 |     0.013 |
+| gpa         |    0.036 |     0.014 |
+| verbal      |    0.087 |     0.015 |
+| quant       |    0.032 |     0.014 |
+| ana         |    0.061 |     0.015 |
+
+The predicted probability of admission for an average applicant during this period is 16.4%.
+
+```{r}
+.164 + 1.96*.013
+.164 - 1.96*.013
+```
+
+The 95% confidence interval of this estimate is between 13.9% and 18.9%.
+
+**Using the output from the previous question, what is the estimated probability of admission for someone with a verbal score 2 SDs above the mean, a GPA 1 SD above the mean, and mean values for the other predictors?**
+
+```{r}
+.164 + 2*.087 + 1*.036
+```
+
+The predicted probability of admission in this case would be 37.4%.
+
+**For this next question, consider the following output. This is the result of regressing `polviews` (a 1 to 7 scale where 1 means "extremely liberal" and 7 means "extremely conservative") on sex and age in years using the 2022 GSS.**
+
+| term        | estimate |
+|:------------|---------:|
+| (Intercept) |    3.001 |
+| age         |    0.020 |
+| sexmale     |    0.439 |
+| age:sexmale |   -0.005 |
+
+**What is the expected value of `polviews` for a 40-year-old male?**
+
+```{r}
+3.001 + .439 + 40*.02 - 40*.005 |> round(3)
+```
+
+**What is the expected value of `polviews` for a 40-year-old female?**
+
+```{r}
+3.001 + 40*.02 |> round(3)
+```
+
+**How large is the expected male-female gap in `polviews` at age 25?**
+
+```{r}
+.439 - 25*.005
+```
+
+**How large is the expected male-female gap in `polviews` at age 65?**
+
+```{r}
+.439 - 65*.005
+```
+
+**Let's return to the `gss2022` data for one last set of questions. Let's consider the relationship between `polviews` (as defined above) and `partyid`, which is a 7-point scale that ranges from 1 ("strong Democrat") to 7 ("strong Republican"). People who study politics often distinguish between *partisanship*, measured by `partyid` and *ideology*, as measured by `polviews`.**
+
+**What is the correlation between these two variables? Interpret this value.**
+
+```{r}
+cor(gss2022$polviews, gss2022$partyid)
+```
+
+The correlation is .563. This means that when one of the variables is a standard deviation higher, we can expect the other variable to be .563 standard deviations higher.
+
+**Estimate a linear regression that predicts `partyid` as a function of `polviews`, `college`, and the interaction between the two. Plot the predictions of this model (don't worry about labels or making things nice). What main story does this graph tell you about the relationship between ideology and partisanship?**
+
+```{r}
+mod <- lm(partyid ~ polviews * college,
+          data = gss2022)
+
+ggpredict(mod, terms = c("polviews", "college")) |> plot()
+```
+
+The relationship between partisanship and ideology is stronger for those who have a college degree.
+
+**Look at the predicted value plot again. Is there anything specific about the plot that tells you the model might not be specified correctly?**
+
+The most obvious is that the model is making predictions below the lowest value for college-educated "extreme" conservatives. The relationship probably isn't exactly linear.

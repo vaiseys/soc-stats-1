@@ -1,0 +1,12 @@
+/*-- scss:rules --*/
+.table-striped {
+  > tbody > tr:nth-of-type(odd) > * {
+    background-color: #f2f2f2;
+  }
+}
+
+.reveal code {
+	font-family: "Berkeley Mono";
+	text-transform: none;
+	tab-size: 2;
+}

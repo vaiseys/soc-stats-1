@@ -1,0 +1,227 @@
+---
+title: "Soc 722"
+execute: 
+  echo: true
+  warning: false
+format: 
+  revealjs:
+    theme: [default, custom.scss]
+    slide-number: true
+editor: source
+revealjs-plugins:
+  - revealjs-text-resizer
+---
+
+# Logistics
+
+## Schedule
+
+We will normally meet Tuesdays. Please note that we will be meeting on the following **Thursdays** (not Tuesdays) because of my travel schedule:
+
+- today
+- January 30
+- February 6
+- February 13
+- March 20
+
+## Final exam
+
+The exam will be **remote** on April 30 from 9am-12pm.
+
+##
+
+:::{.r-fit-text}
+Questions?
+:::
+
+# Introduction
+
+## Objective
+
+This is the first in a two-course sequence designed to help you become competent quantitative researchers in sociology.
+
+This includes learning proper **decision making**, **explanation**, **computation**, **visualization**, and **interpretation**.
+
+# Data and Variables
+
+## Data structure
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(gapminder)
+library(tinytable)
+library(knitr)
+library(kableExtra)
+
+theme_set(theme_light())
+```
+
+```{r}
+#| echo: false
+data(gapminder)
+head(gapminder, n = 10) |> 
+  kbl("html") |>
+  kable_styling(font_size = 24)
+```
+
+Tidy format: columns contain **variables**, each row is an **observation**.
+
+## Untidy data
+
+```{r}
+#| echo: false
+
+untidy <- gapminder |> 
+  pivot_wider(values_from = c(lifeExp, pop, gdpPercap),
+              names_from = year)
+
+head(untidy, n = 12) |> 
+  kbl("html") |>
+  kable_styling(font_size = 24)
+```
+
+
+## Types of variables
+
+|              |                                    |
+|--------------|------------------------------------|
+| **Ratio**    | dollars; points (e.g., basketball) |
+| **Interval** | degrees Celsius                    |
+| **Ordinal**  | clothing sizes; Likert scales      |
+| **Nominal**  | race; sex; country                 |
+
+: {.striped}
+
+The first two types are **continuous** or **numeric**. The second two types are **categorical**. Ordinal variables are often treated as numeric and this is usually fine.
+
+## 
+
+Let's investigate this using the `gapminder` data. First of all, we'll keep only the most recent (2007) data.
+
+```{r}
+d <- gapminder |>               
+  filter(year == max(year)) |> # keep 2007
+  select(-year)                # don't need column
+```
+
+## 
+
+```{r}
+#| echo: false
+
+head(d, n = 10) |> 
+  kbl("html") |>
+  kable_styling(font_size = 24)
+```
+
+What kinds of variables are these?
+
+## The origins of "statistics"
+
+The word _statistics_ comes from the fact that it was information about _the state_. We'll focus on information like this for now rather than thinking about samples of individuals.
+
+## Visualization basics
+
+Consider two types of plots
+
+- univariate plots
+
+- bivariate plots
+
+These are also types of **distributions.**
+
+## Univariate plots
+
+## 
+
+```{r}
+# density plot
+ggplot(d,
+       aes(x = gdpPercap)) +
+  geom_density()
+```
+
+## 
+
+```{r}
+# histogram
+ggplot(d,
+       aes(x = gdpPercap)) +
+  geom_histogram(binwidth = 5000,
+                 boundary = 0,
+                 color = "white")
+```
+
+## 
+
+```{r}
+# histogram
+ggplot(d,
+       aes(x = lifeExp)) +
+  geom_histogram(binwidth = 5,
+                 boundary = 0,
+                 color = "white")
+```
+
+##
+
+```{r}
+# bar graph
+ggplot(d,
+       aes(x = continent)) +
+  geom_bar()
+```
+
+## Bivariate plots
+
+## 
+
+```{r}
+# scatterplot
+ggplot(d,
+       aes(x = gdpPercap,
+           y = lifeExp)) +
+         geom_point()
+```
+
+## 
+
+```{r}
+# bar graph (bivariate)
+d |> 
+  group_by(continent) |> 
+  summarize(GDP = mean(gdpPercap)) |>
+  ggplot(aes(x = continent,
+             y = GDP)) +
+  geom_bar(stat = "identity")
+```
+
+## Time plots (bivariate)
+
+Let's go back to the full data and look at trends in Oceania.
+
+```{r}
+oceania_plot <- gapminder |> 
+  filter(continent == "Oceania") |> 
+  ggplot(aes(x = year,
+             y = lifeExp,
+             group = country,
+             color = country)) +
+  geom_line()
+```
+
+##
+
+```{r}
+oceania_plot
+```
+
+##
+
+:::{.r-fit-text}
+Your turn!
+:::
