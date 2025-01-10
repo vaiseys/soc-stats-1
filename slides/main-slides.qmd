@@ -7,6 +7,7 @@ format:
   revealjs:
     theme: [default, custom.scss]
     slide-number: true
+    self-contained: true
 editor: source
 revealjs-plugins:
   - revealjs-text-resizer
@@ -198,6 +199,28 @@ d |>
   ggplot(aes(x = continent,
              y = GDP)) +
   geom_bar(stat = "identity")
+```
+
+##
+
+```{r}
+# "strip plot"
+ggplot(d,
+       aes(x = gdpPercap,
+           y = continent)) +
+  geom_point(alpha = .3)
+```
+
+##
+
+```{r}
+# "strip plot"
+ggplot(d,
+       aes(x = gdpPercap,
+           y = continent)) +
+  geom_jitter(height = .1,
+              width = .1,
+              alpha = .2)
 ```
 
 ## Time plots (bivariate)
