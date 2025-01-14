@@ -1,19 +1,30 @@
 ---
 title: "Soc 722"
+author: "Stephen Vaisey"
+subtitle: "Spring 2025"
 execute: 
   echo: true
   warning: false
+  freeze: auto
 format: 
   revealjs:
-    theme: [default, custom.scss]
+    theme: [default, inverse.scss, custom.scss]
     slide-number: true
-    self-contained: true
+    embed-resources: true
 editor: source
 revealjs-plugins:
   - revealjs-text-resizer
+editor_options: 
+  chunk_output_type: console
 ---
 
-# Logistics
+# Introduction {.inverse}
+
+## Objective
+
+This is the first in a two-course sequence designed to help you become competent quantitative researchers in sociology.
+
+This includes learning proper **decision making**, **explanation**, **computation**, **visualization**, and **interpretation**.
 
 ## Schedule
 
@@ -29,19 +40,15 @@ We will normally meet Tuesdays. Please note that we will be meeting on the follo
 
 The exam will be **remote** on April 30 from 9am-12pm.
 
+## Syllabus
+
+The syllabus is [here](https://docs.google.com/document/d/1SnKMREAejFdr-MpejuxieZ3nPz7ftdHDoWiRv2aRtQc/edit?usp=sharing). Please be sure to read it.
+
 ##
 
-:::{.r-fit-text}
+:::{.r-fit-text .absolute top="20%"}
 Questions?
 :::
-
-# Introduction
-
-## Objective
-
-This is the first in a two-course sequence designed to help you become competent quantitative researchers in sociology.
-
-This includes learning proper **decision making**, **explanation**, **computation**, **visualization**, and **interpretation**.
 
 # Data and Variables
 
@@ -59,6 +66,8 @@ library(knitr)
 library(kableExtra)
 
 theme_set(theme_light())
+
+options(pillar.width = 70)  # having some trouble with glimpse overflow
 ```
 
 ```{r}
@@ -137,19 +146,21 @@ These are also types of **distributions.**
 
 ## Univariate plots
 
-## 
+## Density plot
 
 ```{r}
-# density plot
+#| output-location: slide
+
 ggplot(d,
        aes(x = gdpPercap)) +
   geom_density()
 ```
 
-## 
+## Histogram (1)
 
 ```{r}
-# histogram
+#| output-location: slide
+
 ggplot(d,
        aes(x = gdpPercap)) +
   geom_histogram(binwidth = 5000,
@@ -157,10 +168,11 @@ ggplot(d,
                  color = "white")
 ```
 
-## 
+## Histogram (2)
 
 ```{r}
-# histogram
+#| output-location: slide
+
 ggplot(d,
        aes(x = lifeExp)) +
   geom_histogram(binwidth = 5,
@@ -168,10 +180,11 @@ ggplot(d,
                  color = "white")
 ```
 
-##
+## Bar graph (univariate)
 
 ```{r}
-# bar graph
+#| output-location: slide
+
 ggplot(d,
        aes(x = continent)) +
   geom_bar()
@@ -179,20 +192,22 @@ ggplot(d,
 
 ## Bivariate plots
 
-## 
+## Scatter plot
 
 ```{r}
-# scatterplot
+#| output-location: slide
+
 ggplot(d,
        aes(x = gdpPercap,
            y = lifeExp)) +
          geom_point()
 ```
 
-## 
+## Bar graph (bivariate)
 
 ```{r}
-# bar graph (bivariate)
+#| output-location: slide
+
 d |> 
   group_by(continent) |> 
   summarize(GDP = mean(gdpPercap)) |>
@@ -201,20 +216,22 @@ d |>
   geom_bar(stat = "identity")
 ```
 
-##
+## Strip plot
 
 ```{r}
-# "strip plot"
+#| output-location: slide
+
 ggplot(d,
        aes(x = gdpPercap,
            y = continent)) +
   geom_point(alpha = .3)
 ```
 
-##
+## Jittered strip plot
 
 ```{r}
-# "strip plot"
+#| output-location: slide
+
 ggplot(d,
        aes(x = gdpPercap,
            y = continent)) +
@@ -228,7 +245,9 @@ ggplot(d,
 Let's go back to the full data and look at trends in Oceania.
 
 ```{r}
-oceania_plot <- gapminder |> 
+#| output-location: slide
+
+gapminder |> 
   filter(continent == "Oceania") |> 
   ggplot(aes(x = year,
              y = lifeExp,
@@ -237,14 +256,337 @@ oceania_plot <- gapminder |>
   geom_line()
 ```
 
-##
+## {#slide-yt1-id data-menu-title="Your turn"}
 
-```{r}
-oceania_plot
-```
-
-##
-
-:::{.r-fit-text}
+:::{.r-fit-text .absolute top="20%"}
 Your turn!
 :::
+
+## Homework
+
+1. Set up a public GitHub repository for this class
+2. Share it with the class on Slack
+3. Create a Quarto document (`HW1.qmd`) making several visualizations using data of your choice
+4. Render it to html (`HW1.html`)
+5. Push it to your repository by midnight before the next meeting
+
+# Surveys, samples, and probability {.inverse}
+
+## Populations and samples
+
+Studying **populations** is nice:
+
+- all countries in the world
+- all states in the US
+- all cities in a state
+
+However, we cannot study (say) all adults in a country. So we usually work with **samples**. This raises the issue of using _samples_ to make inferences about _populations_.
+
+## Simple random sampling
+
+Every eligible case has an equal probability of selection.
+
+## Simulations
+
+We can use **simulations** to build intuition about sampling.
+
+A _simulation_ is when we make up "true data", hide it from ourselves, and see how well we can figure out the the truth using some procedure.
+
+## Simple polling
+
+Imagine a city of 100,000 adults. Of these, 70,000 (i.e., 70%) have at least one child.
+
+How close could we get to this number by drawing different random samples?
+
+## A first simulation
+
+Let's set up the "true" population:
+
+```{r}
+population <- tibble(id = 1:1e5) |> # initialize with 1M rows
+  mutate(parent = if_else(id <= 70000, "Yes", "No"))  # first 70K are "yes"
+```
+
+This simple code makes the first 70,000 rows "yes" and the next 30,000 "no." We now know the "truth", which we can use for comparison.
+
+## Visualizing the population
+
+```{r}
+#| echo: false
+
+ggplot(population,
+       aes(x = parent)) +
+  geom_bar()
+```
+
+## Data types
+
+Because of the way we created it, `parent` will be a character `<chr>` variable. We often use `1` to mean "yes" and `0` to mean "no" in statistics. We could add a numeric version of `parent` as follows.
+
+```{r}
+population <- population |> 
+  mutate(parent_num = if_else(parent == "Yes", 1L, 0L))
+```
+
+:::{.callout-tip}
+Assigning an object to its "old" name allows you to add things to the original object. In this case, we are adding a new column, `parent_num`.
+:::
+
+## Checking data type 
+
+We can use `glimpse()` to easily see what type of variable things are.
+
+```{r}
+glimpse(population)
+```
+
+::: {.callout-tip}
+`glimpse()` is very useful. It shows you your data "sideways" so you can see information about all the columns (which are shown as rows).
+:::
+
+
+## Implications of data type
+
+Data type affects what we can do to a variable (or column). For example, we can take the mean (average) of a set of _numbers_ but we can't take the mean of a set of _characters_.
+
+```{r}
+#| error: true
+
+population |>
+  summarize(mean1 = mean(parent),
+            mean2 = mean(parent_num))
+```
+
+:::{.callout-note}
+In R, `NA` stands for "not available" and means that the data are _missing_. This cell is missing because what we asked for couldn't be calculated.
+:::
+
+## Aside: doing stuff to a variable {.incremental}
+
+We can pick out a column to operate on in two ways:
+
+### The tidy way
+
+```{r}
+population |> pull(parent_num) |> mean()
+```
+
+### The base R way
+
+```{r}
+mean(population$parent_num)
+```
+
+Now back to our story...
+
+## Parameters and statistics
+
+In our city, 70% is the **population parameter** because exactly 70,000 out of 100,000 people actually have at least one child.
+
+We can't afford to ask everyone, though. So what if we asked, say, 1000 randomly selected adults Then we could compute the proportion of the _sample_ that has a child. This would be a **sample statistic**. We use _sample statistics_ to **make inferences** about _population parameters_.
+
+## Drawing a sample
+
+```{r}
+set.seed(722)
+my_sample <- population |> 
+  slice_sample(n = 1000,
+               replace = FALSE)
+```
+
+Sampling is a _random_ process. We will get a different result every time. By using `set.seed()`, we ensure we get the same "random" result every time the code is run.
+
+:::{.callout-note}
+Sampling theory is based on sampling _with replacement_. However, to make it more straightforward, we will use sampling _without replacement_ here.
+:::
+
+## The sample statistic
+
+To estimate the _population proportion_, we will use the _sample proportion_.
+
+```{r}
+my_sample |> 
+  group_by(parent) |> 
+  summarize(n = n())
+```
+
+In our sample, 682 people are parents. This is 68.2%, which isn't _exactly_ the 70% in the population. This is because we randomly sampled from our population. It could be higher or lower.
+
+## Repeating the experiment
+
+In real life, we only get to sample _once_. Sampling is expensive! But since this is just a simulation, we can ask what would happen if we sampled 1000 people many, many times.
+
+## A custom function
+
+We can first make a function that does what we want _once_. This is hard at first but usually pays off.
+
+```{r}
+get_count <- function(n = 1000) {       # default n = 1000
+  slice_sample(population, n = n) |>    # take a sample
+    summarize(sum = sum(parent_num)) |> # count the parents
+    as.integer()                        # save the number
+}
+```
+
+:::{.callout-tip}
+If you run all the code up to here, you can call `get_count()` interactively in the console many times to get a feel for it.
+:::
+
+## Iterating
+
+This would make sense, but it doesn't work.
+
+```{r}
+set.seed(722)
+my_bad_samples <- tibble(
+  sample_id = 1:100,
+  samp_count = get_count())
+head(my_bad_samples)
+```
+
+## Iterating with `rowwise`
+
+```{r}
+set.seed(722)
+my_samples <- tibble(
+  sample_id = 1:100) |> 
+  rowwise() |> 
+  mutate(samp_count = get_count())
+head(my_samples)
+```
+
+## Plotting the results
+
+```{r}
+#| output-location: slide
+
+ggplot(my_samples,
+       aes(x = samp_count)) +
+  geom_histogram(boundary = 697.5,  # why would I choose this?
+                 binwidth = 5,      # somewhat arbitrary
+                 color = "white")
+```
+
+## Repeating with 2,500 samples
+
+```{r}
+#| echo: false
+#| cache: true
+
+set.seed(722)
+my_many_samples <- tibble(
+  sample_id = 1:2500) |> 
+  rowwise() |> 
+  mutate(samp_count = get_count())
+
+p <- ggplot(my_many_samples,
+            aes(x = samp_count)) +
+  geom_histogram(boundary = 697.5,  # why would I choose this?
+                 binwidth = 5,      # somewhat arbitrary
+                 color = "white") +
+  scale_x_continuous(breaks = seq(600, 800, 10))
+
+p
+```
+
+## How accurate are we?
+
+We will do this formally later. But now we can quantify how accurately a _sample proportion_ of 1000 people might estimate this _population proportion_ by using the **interquartile range**. This is how wide the middle half of the data is.
+
+```{r}
+my_many_samples |> pull(samp_count) |> quantile(c(.25, .75))
+my_many_samples |> pull(samp_count) |> IQR()
+```
+
+:::{.callout-tip}
+## Reminder
+Remember: in real life we only get _one_ of these samples. 
+:::
+
+## Visualizing IQR
+
+```{r}
+#| echo: false
+
+p + 
+  geom_vline(xintercept = quantile(my_many_samples$samp_count,
+                                   c(.25, .75)),
+             color = "#CC0000")
+
+```
+
+## Sample size
+
+Remember that we drew a sample of 1000 people to estimate our _sample proportions_. What if we had different sample sizes? Let's compare the following:
+
+- N = 60
+- N = 250
+- N = 1000
+
+## Visualizing "accuracy"
+
+```{r}
+#| echo: false
+#| fig-align: center
+
+set.seed(722)
+my_n60_samples <- tibble(
+  sample_id = 1:2500,
+  sample_size = "N = 60") |> 
+  rowwise() |> 
+  mutate(samp_count = get_count(n = 60),
+         samp_prop = samp_count / 60)     # proportion
+
+my_n250_samples <- tibble(
+  sample_id = 1:2500,
+  sample_size = "N = 250") |> 
+  rowwise() |> 
+  mutate(samp_count = get_count(n = 250),
+         samp_prop = samp_count / 250)
+
+my_many_samples <- my_many_samples |> # adding the group var and prop
+  mutate(sample_size = "N = 1000",
+         samp_prop = samp_count / 1000)
+
+samp_size_compare <- 
+  bind_rows(my_n60_samples,
+            my_n250_samples,
+            my_many_samples)
+
+ggplot(samp_size_compare,
+       aes(x = samp_prop,
+           group = sample_size,
+           color = sample_size)) +
+  geom_density()
+```
+
+:::{.callout-tip}
+## Proportions
+The x-axis is now _proportion_ because we can no longer compare raw counts.
+:::
+
+## Comparing IQR
+
+The interquartile ranges (i.e., widths of the middle half of the data) decrease a lot with sample size.
+
+```{r}
+#| echo: false
+
+samp_size_compare |>              
+  group_by(sample_size) |>        
+  summarize(IQR = IQR(samp_prop))
+```
+
+:::{.callout-warning}
+We will explore these issues more formally very soon using the concepts **sampling distribution** and **standard error**. For now, the goal is to understand how to use simulations to build qualitative intuition about sample size.
+:::
+
+## Recap
+
+We want to know about **populations**. We end up having to use **samples**. Samples are _random_ subsets of the population. The larger the sample, the more accurately we can **infer** the population proportion. We use **simulations** to understand how this works.
+
+## Homework
+
+Make a fake population of at least 100,000 inhabitants. Make some people do, think, believe X and some people not-X. Write a function that samples from that population. Use at least three different sample sizes. Plot your samples. Write up your simulations, explaining what you've shown. Push it to GitHub the night before the next lecture.
+
+Message me on Slack if you are struggling!
