@@ -270,6 +270,10 @@ Your turn!
 4. Render it to html (`HW1.html`)
 5. Push it to your repository by midnight before the next meeting
 
+## Quarto tips
+
+[for later]
+
 # Surveys, samples, and probability {.inverse}
 
 ## Populations and samples
@@ -284,7 +288,22 @@ However, we cannot study (say) all adults in a country. So we usually work with 
 
 ## Simple random sampling
 
-Every eligible case has an equal probability of selection.
+Sampling where every eligible case has an equal probability of selection. 
+
+::::{.columns}
+
+:::{.column width="50%}
+
+![](images/sampling-balls.jpg)
+:::
+
+:::{.column width="50%}
+:::{.callout-note}
+In real-life surveys, SRS is pretty uncommon. But it's important as a baseline!
+:::
+:::
+
+::::
 
 ## Simulations
 
@@ -292,7 +311,7 @@ We can use **simulations** to build intuition about sampling.
 
 A _simulation_ is when we make up "true data", hide it from ourselves, and see how well we can figure out the the truth using some procedure.
 
-## Simple polling
+## Simple survey
 
 Imagine a city of 100,000 adults. Of these, 70,000 (i.e., 70%) have at least one child.
 
@@ -303,7 +322,7 @@ How close could we get to this number by drawing different random samples?
 Let's set up the "true" population:
 
 ```{r}
-population <- tibble(id = 1:1e5) |> # initialize with 1M rows
+population <- tibble(id = 1:1e5) |> # initialize with 100K rows
   mutate(parent = if_else(id <= 70000, "Yes", "No"))  # first 70K are "yes"
 ```
 
@@ -344,11 +363,13 @@ glimpse(population)
 `glimpse()` is very useful. It shows you your data "sideways" so you can see information about all the columns (which are shown as rows).
 :::
 
-
 ## Implications of data type
 
 Data type affects what we can do to a variable (or column). For example, we can take the mean (average) of a set of _numbers_ but we can't take the mean of a set of _characters_.
 
+::::{.columns}
+
+:::{.column width="55%"}
 ```{r}
 #| error: true
 
@@ -356,10 +377,15 @@ population |>
   summarize(mean1 = mean(parent),
             mean2 = mean(parent_num))
 ```
+:::
 
+:::{.column width="45%"}
 :::{.callout-note}
 In R, `NA` stands for "not available" and means that the data are _missing_. This cell is missing because what we asked for couldn't be calculated.
 :::
+:::
+
+::::
 
 ## Aside: doing stuff to a variable {.incremental}
 
@@ -383,7 +409,7 @@ Now back to our story...
 
 In our city, 70% is the **population parameter** because exactly 70,000 out of 100,000 people actually have at least one child.
 
-We can't afford to ask everyone, though. So what if we asked, say, 1000 randomly selected adults Then we could compute the proportion of the _sample_ that has a child. This would be a **sample statistic**. We use _sample statistics_ to **make inferences** about _population parameters_.
+We can't afford to ask everyone, though. So what if we asked, say, 1000 randomly selected adults. Then we could compute the proportion of the _sample_ that has a child. This would be a **sample statistic**. We use _sample statistics_ to **make inferences** about _population parameters_.
 
 ## Drawing a sample
 
@@ -418,7 +444,7 @@ In real life, we only get to sample _once_. Sampling is expensive! But since thi
 
 ## A custom function
 
-We can first make a function that does what we want _once_. This is hard at first but usually pays off.
+We can first make a **function** that does what we want _once_. This is hard at first but usually pays off.
 
 ```{r}
 get_count <- function(n = 1000) {       # default n = 1000
@@ -434,13 +460,13 @@ If you run all the code up to here, you can call `get_count()` interactively in 
 
 ## Iterating
 
-This would make sense, but it doesn't work.
+This would seem to make sense, but it doesn't work.
 
 ```{r}
 set.seed(722)
 my_bad_samples <- tibble(
   sample_id = 1:100,
-  samp_count = get_count())
+  samp_count = get_count(n = 1000))
 head(my_bad_samples)
 ```
 
@@ -451,20 +477,30 @@ set.seed(722)
 my_samples <- tibble(
   sample_id = 1:100) |> 
   rowwise() |> 
-  mutate(samp_count = get_count())
-head(my_samples)
+  mutate(samp_count = get_count(n = 1000))
+head(my_samples, n = 3)
 ```
+
+:::{.callout-tip}
+I don't _need_ `n = 1000` because I set it as the default when I made my function.
+:::
 
 ## Plotting the results
 
 ```{r}
 #| output-location: slide
+#| fig-height: 5
 
 ggplot(my_samples,
        aes(x = samp_count)) +
-  geom_histogram(boundary = 697.5,  # why would I choose this?
-                 binwidth = 5,      # somewhat arbitrary
-                 color = "white")
+  geom_histogram(aes(y = ..density..), # for overlay
+                 boundary = 697.5,     # why would I choose this?
+                 binwidth = 5,         # somewhat arbitrary
+                 color = "white",
+                 fill = "gray") +
+  geom_density(color = "#36454f",      # overlay density
+               linewidth = 1,
+               alpha = .5)      
 ```
 
 ## Repeating with 2,500 samples
@@ -472,6 +508,8 @@ ggplot(my_samples,
 ```{r}
 #| echo: false
 #| cache: true
+#| fig-align: center
+#| fig-height: 5
 
 set.seed(722)
 my_many_samples <- tibble(
@@ -479,15 +517,26 @@ my_many_samples <- tibble(
   rowwise() |> 
   mutate(samp_count = get_count())
 
-p <- ggplot(my_many_samples,
+ggplot(my_many_samples,
             aes(x = samp_count)) +
-  geom_histogram(boundary = 697.5,  # why would I choose this?
+  geom_histogram(aes(y = ..density..),
+                 boundary = 697.5,  # why would I choose this?
                  binwidth = 5,      # somewhat arbitrary
-                 color = "white") +
-  scale_x_continuous(breaks = seq(600, 800, 10))
-
-p
+                 color = "white",
+                 fill = "gray") +
+  scale_x_continuous(breaks = seq(600, 800, 10)) +
+  geom_density(color = "#36454f",    # overlay density
+               linewidth = 1,
+               alpha = .5)    
 ```
+
+## Sample size and number of samples
+
+When we are doing simulations like this, it can be easy to confuse the **sample size** (1000) with the **number of samples** in our simulation (2500). They are not the same thing!
+
+The _sample size_ is the number of people we would survey "in the real world".
+
+The _number of samples_ is how many times we want to run our simulated experiment.
 
 ## How accurate are we?
 
@@ -508,7 +557,11 @@ Remember: in real life we only get _one_ of these samples.
 ```{r}
 #| echo: false
 
-p + 
+ggplot(my_many_samples,
+            aes(x = samp_count)) +
+  geom_density(fill = "gray",
+               color = NA) +
+  scale_x_continuous(breaks = seq(600, 800, 10)) + 
   geom_vline(xintercept = quantile(my_many_samples$samp_count,
                                    c(.25, .75)),
              color = "#CC0000")
@@ -569,6 +622,9 @@ The x-axis is now _proportion_ because we can no longer compare raw counts.
 
 The interquartile ranges (i.e., widths of the middle half of the data) decrease a lot with sample size.
 
+::::{.columns}
+
+:::{.column width="35%"}
 ```{r}
 #| echo: false
 
@@ -576,17 +632,178 @@ samp_size_compare |>
   group_by(sample_size) |>        
   summarize(IQR = IQR(samp_prop))
 ```
+:::
 
+:::{.column width="65%"}
 :::{.callout-warning}
 We will explore these issues more formally very soon using the concepts **sampling distribution** and **standard error**. For now, the goal is to understand how to use simulations to build qualitative intuition about sample size.
 :::
+:::
+
+::::
+
+## Thinking with real data: GSS
+
+The General Social Survey is a **repeated cross-sectional** survey that has been fielded every year or other year since 1972. It is the "Hubble Telescope" of sociology!
+
+## Accessing the GSS in R
+
+Install Kieran Healy's `gssr` package using the code below. You only have to do this once.
+
+```{r}
+#| eval: false
+
+# Install 'gssr' from 'ropensci' universe
+install.packages('gssr', repos =
+  c('https://kjhealy.r-universe.dev', 'https://cloud.r-project.org'))
+
+# Also recommended: install 'gssrdoc' as well
+install.packages('gssrdoc', repos =
+  c('https://kjhealy.r-universe.dev', 'https://cloud.r-project.org'))
+```
+
+## Getting the 2022 survey
+
+```{r}
+library(gssr)
+
+gss2022 <- gss_get_yr(year = 2022) |> # get 2022
+  haven::zap_labels()                 # remove Stata value labels
+
+glimpse(gss2022)
+```
+
+## Introducing `abany`
+
+The GSS `abany` item asks "Please tell me whether or not you think it should be possible for a pregnant woman to obtain a legal abortion if the woman wants it for any reason?" The answers are "yes" (`1`) and "no" (`2`).
+
+There is also a web version of this in 2022: `abanyng`. We will drop this for now.
+
+:::{.callout-warning}
+We do not want variables coded `1` and `2`. As we will see later, it's better if (almost) all variables have a meaningful `0` value.
+:::
+
+## Wrangling `abany`
+
+::::{.columns}
+
+:::{.column width="43%"}
+
+```{r}
+d <- gss2022 |> 
+  select(abany) 
+
+d |> group_by(abany) |> 
+  summarize(n = n())
+```
+:::
+
+:::{.column width="57%"}
+```{r}
+d <- d |> 
+  drop_na() |>   # drop NA values
+  mutate(abany = case_match(abany,
+                            1 ~ 1,
+                            2 ~ 0 ))
+
+d |> pull(abany) |> table()
+```
+:::
+
+::::
+
+:::{.callout-tip}
+`case_match()` is useful for recoding variables.
+:::
+
+## `abany` sample proportion
+
+We can use `mean()` to calculate the _sample proportion_.
+
+```{r}
+mean(d$abany)
+```
+
+We find that `r round(mean(d$abany), 3)*100`% of our sample supports abortion rights for any reason.
+
+## Inference
+
+How close is this _sample statistic_ to the _population parameter_? We'll never know. 
+
+We can use a simulation to give us a sense of what kind of accuracy is possible with a sample of `r nrow(d)` respondents.
+
+## Random number functions
+
+We could build an imaginary US adult population where 59.4% of adults support abortion rights. But we can instead use **random number functions** to draw a sample from an _infinite_ population instead.
+
+```{r}
+set.seed(722)
+rbinom(1345, 1, .594) |> # random sample of 1345
+  mean()                 # take the mean
+```
+
+:::{.callout-tip}
+## Why 59.4%?
+Why assume that the population parameter is the same as the sample statistic? Because we are really interested in how _widely spread_ the simulations are and there's no more reasonable value to choose.
+:::
+
+## Taking many samples (again)
+
+Let's do this 5000 times and collect the results.
+
+```{r}
+set.seed(722)
+gss_sims <- tibble(
+  sim_id = 1:5000) |> 
+  rowwise() |> 
+  mutate(samp_prop = mean(rbinom(1345, 1, .594)))
+```
+
+The IQR tells us how spread out the middle half of the estimates are.
+
+```{r}
+gss_sims |> pull(samp_prop) |> IQR()
+```
+
+Thus, with 1345 cases, half of the sample proportions will be within approximately 1.9 points of the true value.
+
+## Visualize
+
+```{r}
+#| echo: false
+
+ggplot(gss_sims,
+       aes(x = samp_prop)) +
+  geom_density(fill = "gray",
+               color = NA) +
+  scale_x_continuous(breaks = seq(.50, .70, .01)) + 
+  geom_vline(xintercept = quantile(gss_sims$samp_prop,
+                                   c(.025, .25, .75, .975)),
+             color = "#CC0000") +
+  labs(caption = "lines at 2.5th, 25th, 75th, and 97.5th percentiles")
+```
+
+## Summary
+
+We still don't know the true value, of course. We are _probably_ within a couple of points of the true value. But we could be 3 (or _possibly_ more) points away.
+
+![](images/never-certain.jpg){fig-align="center"}
 
 ## Recap
 
-We want to know about **populations**. We end up having to use **samples**. Samples are _random_ subsets of the population. The larger the sample, the more accurately we can **infer** the population proportion. We use **simulations** to understand how this works.
+- we want to know about **populations**
+- we end up having to use **samples** 
+- samples are _random_ subsets of the population that are expensive to collect
+- the larger the sample, the more accurately we can **infer** the population proportion
+- we can use **simulations** to understand how this works.
+
 
 ## Homework
 
-Make a fake population of at least 100,000 inhabitants. Make some people do, think, believe X and some people not-X. Write a function that samples from that population. Use at least three different sample sizes. Plot your samples. Write up your simulations, explaining what you've shown. Push it to GitHub the night before the next lecture.
+- make a fake population of at least 100,000 inhabitants _OR_ you can use random number functions
+- make some people do/think/believe/are X (`1`) and some people not-X (`0`)
+- write a function that samples from that population using at least three different sample sizes 
+- plot and interpret your results
+- push it to GitHub the night before the next lecture
 
 Message me on Slack if you are struggling!
