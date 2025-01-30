@@ -59,12 +59,11 @@ Questions?
 #| echo: false
 #| message: false
 #| warning: false
+#| cache: false
 
 library(tidyverse)
 library(gapminder)
 library(tinytable)
-library(knitr)
-library(kableExtra)
 
 theme_set(theme_light())
 
@@ -75,8 +74,8 @@ options(pillar.width = 70)  # having some trouble with glimpse overflow
 #| echo: false
 data(gapminder)
 head(gapminder, n = 10) |> 
-  kbl("html") |>
-  kable_styling(font_size = 24)
+  tt() |> 
+  style_tt(fontsize = .6)
 ```
 
 Tidy format: columns contain **variables**, each row is an **observation**.
@@ -91,8 +90,8 @@ untidy <- gapminder |>
               names_from = year)
 
 head(untidy, n = 12) |> 
-  kbl("html") |>
-  kable_styling(font_size = 24)
+  tt() |> 
+  style_tt(fontsize = .6)
 ```
 
 
@@ -125,8 +124,8 @@ d <- gapminder |>
 #| echo: false
 
 head(d, n = 10) |> 
-  kbl("html") |>
-  kable_styling(font_size = 24)
+  tt() |> 
+  style_tt(fontsize = .7)
 ```
 
 What kinds of variables are these?
@@ -270,10 +269,6 @@ Your turn!
 3. Create a Quarto document (`HW1.qmd`) making several visualizations using data of your choice
 4. Render it to html (`HW1.html`)
 5. Push it to your repository by midnight before the next meeting
-
-## Quarto tips
-
-[for later]
 
 # Surveys, samples, and probability {.inverse}
 
@@ -1173,3 +1168,226 @@ This is a very basic introduction to probability. We will build on it but it's i
 1. Create two different two-by-two tables, at least one of which is from the GSS. Make sure to use `drop_na()` to exclude missing data for now.
 
 2. Compute and interpret all the marginal, joint, and conditional probabilities for each table.
+
+
+# Univariate statistics {.inverse}
+
+## Descriptive statistics
+
+We will distinguish between descriptive statistics for three different variable types:
+
+1. Continuous (interval, ratio, and some ordinal variables)
+
+2. Binary
+
+3. Multinomial or categorical (nominal and some ordinal)
+
+## The right data
+
+Let's get a few variables to work with.
+
+```{r}
+d <- gss2022 |>
+  select(wordsum,      # continuous
+         age,          # continuous
+         educ,         # continuous (make binary/ordinal)
+         marital) |>   # nominal
+  drop_na() |> 
+  mutate(marital_chr = case_match(marital,
+                                  1 ~ "married",
+                                  2 ~ "widowed",
+                                  c(3,4) ~ "sep. or div.",
+                                  5 ~ "never mar."))
+```
+
+:::callout-note
+Deleting cases with any missing data is sometimes OK, but there are often better ways to handle it. We will address this (much) later!
+:::
+
+## Continuous: `wordsum`
+
+How many of the following words can you correctly define (picking the closest synonym via multiple choice):
+
+::::columns
+
+::: column
+
+- Adept
+- Audible
+- Consume
+- Coherent
+- Emulate
+:::
+
+::: column
+- Erroneous
+- Fortitude
+- Misnomer
+- Reverent
+- Stimulus
+:::
+
+::::
+
+:::footer
+I'm not 100% sure these are the words. But ChatGPT was pretty confident about it!
+:::
+
+## Continuous: `wordsum`
+
+```{r}
+#| echo: false
+
+ggplot(d,
+       aes(x = wordsum,
+           y = after_stat(count*100 / nrow(d)))) +
+  geom_bar() +
+  scale_x_continuous(breaks = 0:10) +
+  labs(x = "Words Correct",
+       y = "% of sample",
+       caption = "Source: 2022 General Social Survey",
+       title = "Distribution of wordsum")
+```
+
+## Center and spread
+
+We can use numbers to summarize a variable from a sample rather than having to reproduce the entire column of data every time.
+
+::::columns
+:::column
+
+#### Center
+
+- mean
+- median
+- mode
+
+:::
+:::column
+
+#### Spread
+
+- variance
+- standard deviation
+- interquartile range
+
+:::
+::::
+
+We will focus on the mean, variance, and standard deviation first.
+
+## Mean and notation
+
+$\bar{x}$ is pronounced "X bar" and is the **mean** of the variable $X$ in a particular sample. We often use $X$ when we are talking about a variable. 
+
+  $$
+  \bar{x} = \frac{1}{n} \sum_{i=1}^{n} x_i
+  $$
+$\Sigma$ means to sum; $i$ is an _index_ for each observation; $n$ is the number of observations in the sample. So we are summing the values of $x$ for each observation from the first $(i=1)$ to the last $(i=n)$ and then dividing by $n$.
+
+## Mean: `wordsum`
+
+```{r}
+#| echo: false
+
+ggplot(d,
+       aes(x = wordsum,
+           y = after_stat(count*100 / nrow(d)))) +
+  geom_bar() +
+  geom_vline(xintercept = mean(d$wordsum),
+             color = "red") +
+  scale_x_continuous(breaks = 0:10) +
+  labs(x = "Words Correct",
+       y = "% of sample",
+       caption = "Source: 2022 General Social Survey",
+       title = "Distribution of wordsum")
+```
+
+The mean is `r round(mean(d$wordsum), 2)`.
+
+## Variance
+
+The sample **variance** tells you how spread out the data points are.
+
+  $$
+  s^2 = \frac{1}{n-1} \sum_{i=1}^{n}(x_i-\bar{x})^2
+  $$
+This is _sort of_ the _average squared deviation_ from the mean. We divide by $n-1$ for reasons you don't need to worry about right now. We use _squared deviations_ instead of absolute deviations for many reasons we are _also_ not going to talk about right now!
+
+## Standard deviation
+
+The _variance_ $(s^2)$ has many desirable properties we're not ready to discuss. Its main disadvantage is that it's in _squared units_ of the variable. By taking the square root, we get an interpretable value.
+
+  $$
+  s = \sqrt{\frac{1}{n-1} \sum_{i=1}^{n}(x_i-\bar{x})^2}
+  $$
+The **standard deviation**, $s$, is a "typical deviation" from the mean.
+
+## Standard deviation: `wordsum`
+
+The mean of `wordsum` is `r round(mean(d$wordsum), 2)`. The standard deviation is `r round(sd(d$wordsum), 2)`. 
+
+We'll talk more about how to use these values soon. For now, just remember that a deviation from the mean of that size or less would not be unusual.
+
+## Sample and population
+
+So far, we've defined and discussed these as _sample_ statistics rather than population parameters. The notation is slightly different for populations (although researchers are not always consistent).
+
+- The sample mean is $\bar{x}$; the population mean is $\mu$.
+
+- The sample variance is $s^2$; the population variance is $\sigma^2$.
+
+- The sample SD is $s$; the population SD is $\sigma$.
+
+## The normal distribution
+
+In our resampling experiments earlier, we mentioned the **normal distribution**. When we resample and compute the mean, for example, our results will converge to that shape. 
+
+  $$
+  f(x) = \frac{1}{\sigma \sqrt{2\pi}} e^{-\frac{(x - \mu)^2}{2\sigma^2}}
+  $$
+
+:::callout-warning
+This is a **probability density function**. Don't freak out about this. The important thing is to see $\mu$ (the mean) and $\sigma$ (the standard deviation). This just means that the _probability_ of seeing a particular observation is is a function of the mean and SD of the distribution.
+:::
+
+## Normal distribution: `wordsum`
+
+Based on what we have already computed, we can approximate the distribution of `wordsum` using a normal distribution with a mean of `r round(mean(d$wordsum), 2)` and a SD of `r round(sd(d$wordsum), 2)`.
+
+We can write this as 
+  
+  $$\text{wordsum} \sim \cal{N}(`r round(mean(d$wordsum), 2)`, `r   round(sd(d$wordsum), 2)`)
+  $$
+  
+
+The first number is the _mean_ and the second is the _standard deviation_.
+
+
+
+##
+
+```{r}
+#| echo: false
+#| fig-align: center
+
+ggplot(d,
+       aes(x = wordsum)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 binwidth = 1,
+                 color = "white") +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(d$wordsum), 
+                            sd = sd(d$wordsum)), 
+                color = "red", linewidth = 1.2) +
+  scale_x_continuous(breaks = 0:10) +
+  labs(x = "Words Correct",
+       y = "Density",
+       caption = "Source: 2022 General Social Survey",
+       title = "Distribution of wordsum with normal dist.")
+```
+
+:::callout-tip
+## Consider
+In what ways is this approximation good? In which ways is it bad?
+:::
