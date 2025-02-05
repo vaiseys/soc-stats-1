@@ -45,6 +45,26 @@ The exam will be **remote** on April 30 from 9am-12pm.
 
 The syllabus is [here](https://docs.google.com/document/d/1SnKMREAejFdr-MpejuxieZ3nPz7ftdHDoWiRv2aRtQc/edit?usp=sharing). Please be sure to read it.
 
+## Packages needed
+
+You will need the following packages to run everything in this course.
+
+```{r}
+#| include: false
+#| execute: false
+
+install.packages(c("gapminder",
+                   "tidyverse",
+                   "tinytable",
+                   "venn"),
+                 dependencies = TRUE)
+
+install.packages('gssr', repos =
+  c('https://kjhealy.r-universe.dev', 'https://cloud.r-project.org'))
+
+```
+
+
 ##
 
 :::{.r-fit-text .absolute top="20%"}
@@ -510,7 +530,7 @@ I don't _need_ `n = 1000` because I set it as the default when I made my functio
 
 ggplot(my_samples,
        aes(x = samp_count)) +
-  geom_histogram(aes(y = ..density..), # for overlay
+  geom_histogram(aes(y = after_stat(density)), # for overlay
                  boundary = 697.5,     # why would I choose this?
                  binwidth = 5,         # somewhat arbitrary
                  color = "white",
@@ -536,7 +556,7 @@ my_many_samples <- tibble(
 
 ggplot(my_many_samples,
             aes(x = samp_count)) +
-  geom_histogram(aes(y = ..density..),
+  geom_histogram(aes(y = after_stat(density)),
                  boundary = 697.5,  # why would I choose this?
                  binwidth = 5,      # somewhat arbitrary
                  color = "white",
@@ -1241,7 +1261,8 @@ I'm not 100% sure these are the words. But ChatGPT was pretty confident about it
 ggplot(d,
        aes(x = wordsum,
            y = after_stat(count*100 / nrow(d)))) +
-  geom_bar() +
+  geom_histogram(binwidth = 1,
+                 color = "white") +
   scale_x_continuous(breaks = 0:10) +
   labs(x = "Words Correct",
        y = "% of sample",
@@ -1278,7 +1299,7 @@ We will focus on the mean, variance, and standard deviation first.
 
 ## Mean and notation
 
-$\bar{x}$ is pronounced "X bar" and is the **mean** of the variable $X$ in a particular sample. We often use $X$ when we are talking about a variable. 
+$\bar{x}$ is pronounced "x-bar" and is the **mean** of the variable $x$ in a particular sample. We often use $x$ when we are talking about a variable. 
 
   $$
   \bar{x} = \frac{1}{n} \sum_{i=1}^{n} x_i
@@ -1293,9 +1314,10 @@ $\Sigma$ means to sum; $i$ is an _index_ for each observation; $n$ is the number
 ggplot(d,
        aes(x = wordsum,
            y = after_stat(count*100 / nrow(d)))) +
-  geom_bar() +
+  geom_histogram(binwidth = 1,
+                 color = "white") +
   geom_vline(xintercept = mean(d$wordsum),
-             color = "red") +
+             color = "#CC0000") +
   scale_x_continuous(breaks = 0:10) +
   labs(x = "Words Correct",
        y = "% of sample",
@@ -1327,7 +1349,7 @@ The **standard deviation**, $s$, is a "typical deviation" from the mean.
 
 The mean of `wordsum` is `r round(mean(d$wordsum), 2)`. The standard deviation is `r round(sd(d$wordsum), 2)`. 
 
-We'll talk more about how to use these values soon. For now, just remember that a deviation from the mean of that size or less would not be unusual.
+We'll talk more about how to use these values soon. For now, just remember that a deviation from the mean of that size or less would not be unusual. So anything between 
 
 ## Sample and population
 
@@ -1351,6 +1373,99 @@ In our resampling experiments earlier, we mentioned the **normal distribution**.
 This is a **probability density function**. Don't freak out about this. The important thing is to see $\mu$ (the mean) and $\sigma$ (the standard deviation). This just means that the _probability_ of seeing a particular observation is is a function of the mean and SD of the distribution.
 :::
 
+## Normal PDF
+
+```{r}
+#| echo: false
+
+ggplot() +
+  xlim(-4, 4) +
+  geom_function(fun = dnorm,
+                color = "#CC0000") +
+  labs(title = "Normal probability density function",
+       x = "SD diff. from mean",
+       y = "" ~ phi(x) ~ "")
+```
+
+## What is "probabiilty density"?
+
+For a truly continuous variable, the _probability_ that a variable takes on an _exact_ value (say a height of 170.0000... cm) is _zero_. 
+
+This is quite different than, say, the probability that a fair coin comes up heads (.5) or that a person answers "yes" to a question about abortion in a population.
+
+:::{.callout-tip .absolute style="top: 60%;"}
+You could ask the probability that a person's height is, say, greater than or equal to 169.5 and less than 170.5. As the width of this "window" shrinks to zero, the probability also shrinks to zero. But we can talk about the _density_ of the probability in that area.
+:::
+
+## Density can be higher than 1!
+
+```{r}
+#| echo: false
+
+ggplot() +
+  xlim(-4, 4) +
+  geom_function(fun = dnorm,
+                color = "#CC0000") +
+    geom_function(fun = dnorm,
+                  args = list(mean = 0, sd = .3),
+                  color = "blue") +
+  annotate("text", 
+           x = -1.5,
+           y = .7,
+           label = ""~ sigma ~" = .3",
+           size = 5,
+           color = "blue") +
+    annotate("text", 
+           x = -1.5,
+           y = .6,
+           label = ""~ sigma ~" = 1",
+           size = 5,
+           color = "red") +
+  labs(title = "Normal probability density function",
+       x = "SD diff. from mean",
+       y = "" ~ phi(x) ~ "")
+
+```
+
+## Cumulative density function
+
+```{r}
+#| echo: false
+
+ggplot() +
+  xlim(-4, 4) +
+  geom_function(fun = pnorm,
+                color = "#CC0000") +
+  labs(x = "SD diff. from mean",
+       y = "" ~ Phi(x) ~ "")
+```
+
+## Cumulative probability
+
+```{r}
+#| echo: false
+
+library(ggplot2)
+
+ggplot(data.frame(x = c(-4, 4)), 
+       aes(x = x)) +
+  stat_function(fun = pnorm, 
+                color = "#CC0000") +
+  stat_function(fun = pnorm, 
+                geom = "area", 
+                xlim = c(-4, 1), 
+                fill = "#CC0000", 
+                alpha = 0.6) +
+  annotate("text", 
+           x = -2, 
+           y = 0.5, 
+           label = "Pr(x <= 1) = .84", 
+           size = 5, 
+           color = "black") +
+  labs(x = "SD diff. from mean",
+       y = expression(Phi(x)))
+```
+
 ## Normal distribution: `wordsum`
 
 Based on what we have already computed, we can approximate the distribution of `wordsum` using a normal distribution with a mean of `r round(mean(d$wordsum), 2)` and a SD of `r round(sd(d$wordsum), 2)`.
@@ -1363,9 +1478,7 @@ We can write this as
 
 The first number is the _mean_ and the second is the _standard deviation_.
 
-
-
-##
+## How good is this approximation?
 
 ```{r}
 #| echo: false
@@ -1379,15 +1492,47 @@ ggplot(d,
   stat_function(fun = dnorm, 
                 args = list(mean = mean(d$wordsum), 
                             sd = sd(d$wordsum)), 
-                color = "red", linewidth = 1.2) +
-  scale_x_continuous(breaks = 0:10) +
+                color = "#CC0000", linewidth = 1.1) + 
+  scale_x_continuous(breaks = -1:13,
+                     limits = c(-1, 13)) +
   labs(x = "Words Correct",
        y = "Density",
        caption = "Source: 2022 General Social Survey",
        title = "Distribution of wordsum with normal dist.")
 ```
 
-:::callout-tip
-## Consider
-In what ways is this approximation good? In which ways is it bad?
+## ECDF vs. Normal
+
+```{r}
+#| echo: false
+
+d |> 
+  group_by(wordsum) |> 
+  summarize(p = n() / nrow(d)) |> 
+  mutate(cp = cumsum(p)) |> 
+  ggplot(aes(x = wordsum,
+             y = cp)) +
+  stat_ecdf(geom = "step", color = "blue") +  
+  stat_function(fun = pnorm,
+                args = list(mean = mean(d$wordsum),
+                            sd = sd(d$wordsum)),
+                color = "#CC0000") +
+  scale_x_continuous(breaks = -1:13,
+                     limits = c(-1, 13)) +
+  labs(x = "Words Correct",
+       y = "Cumulative Probability")
+```
+
+## Homework {.smaller}
+
+For two separate variables with at least 10 categories:
+
+  - calculate and interpret the mean and SD
+  - superimpose a probability density plot on the histogram
+  - interpret the quality of the normal approximation to the observed distribution. What does the approximation get right? What does it get wrong?
+  - use some Latex math (use both inline and display math at least once)
+  - use some inline R code for practice
+
+:::callout-warning
+Make your document look good. For example, label your graph axes, load only packages you actually need, and don't allow `echo` or `message` for loading packages. The default is rendering to HTML. But you can make slides or pdf if you prefer. Try to make it clear that you are not just coping my code!
 :::
