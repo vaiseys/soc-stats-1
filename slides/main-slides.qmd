@@ -9,7 +9,7 @@ execute:
   cache: true
 format: 
   revealjs:
-    theme: [default, inverse.scss]
+    theme: [default, inverse.scss, custom.scss]
     slide-number: true
     embed-resources: true
 editor: source
@@ -1445,8 +1445,6 @@ ggplot() +
 ```{r}
 #| echo: false
 
-library(ggplot2)
-
 ggplot(data.frame(x = c(-4, 4)), 
        aes(x = x)) +
   stat_function(fun = pnorm, 
@@ -1536,3 +1534,326 @@ For two separate variables with at least 10 categories:
 :::callout-warning
 Make your document look good. For example, label your graph axes, load only packages you actually need, and don't allow `echo` or `message` for loading packages. The default is rendering to HTML. But you can make slides or pdf if you prefer. Try to make it clear that you are not just coping my code!
 :::
+
+## Robust statistics
+
+In inferential statistics (making inferences from samples to populations), we focus on the mean and standard deviation.
+
+The **median** is used more as a descriptive statistic. It is called a **robust statistic** because it is insensitive to **outliers**. For example, the median age in the 2022 GSS is `r median(d$age)`. This would be true even if we took the oldest person and made them 900 years old!
+
+## Median: example
+
+```{r}
+#| echo: false
+
+median_data <- tibble(x1 = 1:11,
+                      x2 = c(1:10, 20)) |> 
+  pivot_longer(everything())
+
+ggplot(median_data,
+       aes(x = value,
+           y = name,
+           color = name)) +
+  geom_point() +
+  theme(legend.position = "none") +
+  labs(y = "",
+       x = "") +
+  annotate("text",
+           x = c(5, 5, 10, 10),
+           y = c(1.25, 2.25, 1.25, 2.25),
+           label = c("mean = 6",
+                     "mean = 6.82",
+                     "median = 6",
+                     "median = 6"))
+  
+``` 
+
+
+## Bernoulli distribution
+
+::::columns
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+
+d <- d |> 
+  mutate(college = if_else(educ >= 16,
+                           TRUE,
+                           FALSE))
+```
+
+You've seen this before but some statistical distributions have only two options. If we want to describe the proportion of US adults who have a college degree, we can describe this as a **Bernoulli distribution** with $p = `r round(mean(d$college),3)`$.
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: false
+#| fig-height: 10
+
+ggplot(d,
+       aes(x = college,
+           y = after_stat(count / nrow(d)))) +
+  geom_bar() +
+  labs(x = "College degree?",
+       y = "Proportion",
+       caption = "Source: 2022 General Social Survey")
+```
+
+:::
+::::
+
+## One- and two-parameter distributions
+
+The normal distribution has two **parameters**, $\mu$ and $\sigma$. This is because the normal distribution is defined by the location of its _center_ and the width of its _spread_.
+
+The Bernoulli distribution has only one parameter, which is $p$ (sometimes people use $\pi$). This is just the probability of a "yes," or, as it is often called, a "success."
+
+[But this doesn't mean that the Bernoulli doesn't have center and spread...]{.fragment}
+
+## Spread of the Bernoulli distribution
+
+Variance is a measure of _uncertainty_ about where the data are. Imagine two alternatives: a Bernoulli distribution with $p = .01$ and one with $p = .50$. There's a lot more uncertainty about the latter!
+
+So the spread is also a function of $p$. In other words, $p$ determines both center and spread.
+
+For a variable, $X$, $\text{Var}[X] = p(1-p)$. [Therefore it's also true that $\text{SD}[X] = \sqrt{p(1-p)}$.]{.fragment}
+
+## From Bernoulli to normal
+
+The normal distribution can be derived as the sum of many Bernoulli trials. For example, imagine we start with 100 people standing on the halfway line of a football field. Each person flips a coin and, if it's heads, takes a step forward (say one meter). If tails, they take a step backward (one meter). What would things look like after 100 trials?
+
+## The field
+
+[add graph]
+
+# Univariate inference {.inverse}
+
+## Connecting to the CLT
+
+Now that we know about the _standard deviation_, we are ready to combine this with what we learned earlier about the Central Limit Theorem.
+
+Let's look back at the simulations we did of three Bernoulli distributions with $p = .7$ and sample sizes of 60, 250, and 1000. Recall that each one was simulated 2500 times.
+
+## Remember these?
+
+::::columns
+:::{.column width="60%"}
+
+```{r}
+#| echo: false
+#| fig-height: 9
+
+ggplot(samp_size_compare,
+       aes(x = samp_prop,
+           group = sample_size,
+           color = sample_size)) +
+  geom_density(linewidth = 1.5) +
+  labs(x = "Proportion",
+       y = "Density",
+       color = "Samp. size") +
+  xlim(c(.5, .9))
+  
+```
+:::
+
+:::{.column width="40%"}
+```{r}
+#| echo: false
+
+samp_size_compare |> 
+  group_by(sample_size) |> 
+  summarize(p = mean(samp_prop), 
+            sd = sd(samp_prop))
+```
+:::
+::::
+
+## The sampling distribution
+
+The **sampling distribution** is the distribution that we would get if we did simulations like these infinite times. (Again, ***not*** infinite sample size but infinite simulations of a given sample size!) Thanks to the CLT, we know exactly how these would look!
+
+This example is from a Bernoulli distribution but this works for any distribution. Mean estimates from repeated samples would form a normal distribution with a known mean and standard deviation.
+
+## The standard error
+
+The expected _mean_ of the sampling distribution is just $\bar{x}$, the sample mean. This is the best guess we can make.
+
+:::fragment
+The _standard deviation of the sampling distribution_ has a special name: the **standard error**. The formula is
+
+  $$
+  \text{SE} = \frac{\text{SD}}{\sqrt{n}}
+  $$
+:::
+
+:::fragment
+:::callout-note
+This is one of the many cases where there is an **analytic solution** to a problem we could address through simulation. Use the formulas above to calculate the SEs of the simulations. How well do the empirical values match?
+:::
+:::
+
+## SE examples
+
+Calculate the following SEs:
+
+- GSS age: $\widehat{\text{SD}} = `r round(sd(d$age), 1)`$, $n = `r nrow(d)`$
+
+- GSS wordsum: $\widehat{\text{SD}} = `r round(sd(d$wordsum), 1)`$, $n = `r nrow(d)`$
+
+- GSS college: $\hat{p} = `r round(mean(d$college), 2)`$, $n = `r nrow(d)`$
+
+:::{.callout-note .absolute style="top: 65%;"}
+The "hat" over $\text{SD}$ and $p$ is a way to say explicitly that it is an estimate from a sample. This is pronounced, for example, "p-hat."
+:::
+
+## Margin of error
+
+When we report an estimate (for example an estimated vote proportion from a poll), we want also to report our uncertainty about that estimate because it comes from a sample. 
+
+Most people encounter this "in the wild" as the **margin of error**. This is conventionally calculated as plus or minus two _standard errors_ (for reasons we will discuss below).
+
+:::{.callout-tip .absolute style="top: 65%;"}
+## Calculate
+What would the margin of error values be for yes/no polls with $\hat{p} = .53$ and sample sizes of 400, 900, and 1600? 
+:::
+
+## Confidence interval
+
+Earlier in the course we looked at the interquartile range of the simulation results from sampling. That was a way to quantify how much our results could vary given our sampling set up. 
+
+But the traditional way is to use a **confidence interval** based on the normal distribution. Since we know how to calculate the _standard error_ based on descriptive statistics, we can calculate an interval within which some percentage of the estimates will fall given our sampling design and descriptive results.
+
+## Width of the confidence interval
+
+The width we choose for a confidence interval is a function of how "conservative" we want to be. For example, in a yes/no poll, we are 100% sure that $p$ is between 0 and 1. But that's not very useful.
+
+The $\pm$ 2 SE convention of the "margin of error" is based on the 95% confidence interval, which is the most conventional width now.
+
+## 95% confidence interval
+
+```{r}
+#| echo: false
+
+ggplot(data.frame(x = c(-4, 4)), 
+       aes(x = x)) +
+  stat_function(fun = dnorm, 
+                color = "#CC0000") +
+  stat_function(fun = dnorm, 
+                geom = "area", 
+                xlim = c(-1.96, 1.96), 
+                fill = "#CC0000", 
+                alpha = 0.6) +
+  annotate("text", 
+           x = -2.5, 
+           y = 0.35, 
+           label = "+/- 1.96 SE", 
+           size = 5, 
+           color = "black") +
+  labs(x = "SEs from the mean \n (z-score)",
+       y = expression(Phi(x)))
+```
+
+## 99% confidence interval
+
+```{r}
+#| echo: false
+
+ggplot(data.frame(x = c(-4, 4)), 
+       aes(x = x)) +
+  stat_function(fun = dnorm, 
+                color = "#CC0000") +
+  stat_function(fun = dnorm, 
+                geom = "area", 
+                xlim = c(-2.58, 2.58), 
+                fill = "#CC0000", 
+                alpha = 0.6) +
+  annotate("text", 
+           x = -2.5, 
+           y = 0.35, 
+           label = "+/- 2.58 SE", 
+           size = 5, 
+           color = "black") +
+  labs(x = "SEs from the mean \n (z-score)",
+       y = expression(Phi(x)))
+```
+
+## 89% confidence interval
+
+```{r}
+#| echo: false
+
+ggplot(data.frame(x = c(-4, 4)), 
+       aes(x = x)) +
+  stat_function(fun = dnorm, 
+                color = "#CC0000") +
+  stat_function(fun = dnorm, 
+                geom = "area", 
+                xlim = c(-1.598, 1.598), 
+                fill = "#CC0000", 
+                alpha = 0.6) +
+  annotate("text", 
+           x = -2.5, 
+           y = 0.35, 
+           label = "+/- 1.598 SE", 
+           size = 5, 
+           color = "black") +
+  labs(x = "SEs from the mean \n (z-score)",
+       y = expression(Phi(x)))
+```
+
+## 68% confidence interval
+
+```{r}
+#| echo: false
+
+ggplot(data.frame(x = c(-4, 4)), 
+       aes(x = x)) +
+  stat_function(fun = dnorm, 
+                color = "#CC0000") +
+  stat_function(fun = dnorm, 
+                geom = "area", 
+                xlim = c(-1, 1), 
+                fill = "#CC0000", 
+                alpha = 0.6) +
+  annotate("text", 
+           x = -2.5, 
+           y = 0.35, 
+           label = "+/- 1 SE", 
+           size = 5, 
+           color = "black") +
+  labs(x = "SEs from the mean \n (z-score)",
+       y = expression(Phi(x)))
+```
+
+## Aside: the z-score
+
+The **z-score** is a how we refer to how many standard deviations away from the mean a particular value is. This applies everywhere the normal distribution gets used.
+
+It's an abstract way to talk about "weirdness" without specifying units. If a person is 5 SDs from the mean on some dimension, they are very, very weird! This is true for height, wealth, extraversion, etc.
+
+:::{.callout-tip .absolute style="top: 65%;"}
+If the mean height for men in the US is about 70 inches and the SD is about 4 inches, how tall is someone 5 SDs above the mean? Below the mean?
+:::
+
+## Interpreting confidence intervals
+
+What most people say is "we are 95% sure the true value is between the lower and upper bound of the confidence interval." But that's not _quite_ accurate. 
+
+It's more correct to say that, if we did the same study infinite times, 95% of the computed intervals would contain the true value.
+
+The confidence level refers to our confidence in the _procedure_, not the specific interval, since that is calculated from just one dataset.
+
+## Homework
+
+- Calculate means, SDs, and confidence intervals (89%, 95%, 99%) for one continuous and one binary variable. Interpret the confidence intervals.
+- Do two simulations (one continuous, one binary) to show that simulation-based standard deviations of the estimate converge to the formula-based standard error of the sampling distribution. Explain the result to show you understand what you did.
+
+## Univariate hypothesis test
+
+The confidence interval is closely linked to the idea of the **hypothesis test**.
+
+
+
+
+
