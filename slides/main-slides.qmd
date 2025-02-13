@@ -609,9 +609,9 @@ ggplot(my_many_samples,
 
 Remember that we drew a sample of 1000 people to estimate our _sample proportions_. What if we had different sample sizes? Let's compare the following:
 
-- N = 60
-- N = 250
-- N = 1000
+- $n$ = 60
+- $n$ = 250
+- $n$ = 1000
 
 ## Visualizing "accuracy"
 
@@ -622,20 +622,20 @@ Remember that we drew a sample of 1000 people to estimate our _sample proportion
 set.seed(722)
 my_n60_samples <- tibble(
   sample_id = 1:2500,
-  sample_size = "N = 60") |> 
+  sample_size = "n = 60") |> 
   rowwise() |> 
   mutate(samp_count = get_count(n = 60),
          samp_prop = samp_count / 60)     # proportion
 
 my_n250_samples <- tibble(
   sample_id = 1:2500,
-  sample_size = "N = 250") |> 
+  sample_size = "n = 250") |> 
   rowwise() |> 
   mutate(samp_count = get_count(n = 250),
          samp_prop = samp_count / 250)
 
 my_many_samples <- my_many_samples |> # adding the group var and prop
-  mutate(sample_size = "N = 1000",
+  mutate(sample_size = "n = 1000",
          samp_prop = samp_count / 1000)
 
 samp_size_compare <- 
@@ -1623,9 +1623,9 @@ For a variable, $X$, $\text{Var}[X] = p(1-p)$. [Therefore it's also true that $\
 
 The normal distribution can be derived as the sum of many Bernoulli trials. For example, imagine we start with 100 people standing on the halfway line of a football field. Each person flips a coin and, if it's heads, takes a step forward (say one meter). If tails, they take a step backward (one meter). What would things look like after 100 trials?
 
-## The field
+## 
 
-[add graph]
+{{< video https://www.youtube.com/embed/EvHiee7gs9Y?si=T-5caxz2U12ok3RK >}}
 
 # Univariate inference {.inverse}
 
@@ -1697,9 +1697,9 @@ This is one of the many cases where there is an **analytic solution** to a probl
 
 Calculate the following SEs:
 
-- GSS age: $\widehat{\text{SD}} = `r round(sd(d$age), 1)`$, $n = `r nrow(d)`$
+- GSS age: $\hat{s} = `r round(sd(d$age), 1)`$, $n = `r nrow(d)`$
 
-- GSS wordsum: $\widehat{\text{SD}} = `r round(sd(d$wordsum), 1)`$, $n = `r nrow(d)`$
+- GSS wordsum: $\hat{s} = `r round(sd(d$wordsum), 1)`$, $n = `r nrow(d)`$
 
 - GSS college: $\hat{p} = `r round(mean(d$college), 2)`$, $n = `r nrow(d)`$
 
@@ -1751,7 +1751,7 @@ ggplot(data.frame(x = c(-4, 4)),
            size = 5, 
            color = "black") +
   labs(x = "SEs from the mean \n (z-score)",
-       y = expression(Phi(x)))
+       y = expression(phi(x)))
 ```
 
 ## 99% confidence interval
@@ -1775,7 +1775,7 @@ ggplot(data.frame(x = c(-4, 4)),
            size = 5, 
            color = "black") +
   labs(x = "SEs from the mean \n (z-score)",
-       y = expression(Phi(x)))
+       y = expression(phi(x)))
 ```
 
 ## 89% confidence interval
@@ -1799,7 +1799,7 @@ ggplot(data.frame(x = c(-4, 4)),
            size = 5, 
            color = "black") +
   labs(x = "SEs from the mean \n (z-score)",
-       y = expression(Phi(x)))
+       y = expression(phi(x)))
 ```
 
 ## 68% confidence interval
@@ -1823,7 +1823,7 @@ ggplot(data.frame(x = c(-4, 4)),
            size = 5, 
            color = "black") +
   labs(x = "SEs from the mean \n (z-score)",
-       y = expression(Phi(x)))
+       y = expression(phi(x)))
 ```
 
 ## Aside: the z-score
@@ -1851,8 +1851,154 @@ The confidence level refers to our confidence in the _procedure_, not the specif
 
 ## Univariate hypothesis test
 
-The confidence interval is closely linked to the idea of the **hypothesis test**.
+The confidence interval is closely linked to the idea of the **hypothesis test**. This uses the _sample data_ to test if there is enough evidence to assert that the _population_ differs from some specific reference value.
 
+This reference value is called the **null hypothesis**.
+
+## Hypothesis test considerations
+
+As we've seen, the probability that a variable takes on an exactly specific value is, for all intents and purposes, zero. So we want to ask if the sample statistic is _different_ from (above or below) some specific value.
+
+In the case of yes/no polling, the most obvious null hypothesis is .5 or 50%. This is because the majority wins.
+
+## Example
+
+Consider we are conducting a poll on a high-speed rail initiative. We want to know if it's going to pass. This gives an obvious null hypothesis of 50%. Can we confidently assert that the actual vote numbers are going to be above or below 50%? Or is the evidence too close to 50% to tell?
+
+Let's say we poll 600 registered voters and estimate $\hat{p}_{\text{yes}} = .55$. Does this give us enough evidence to say that it's going to pass?
+
+## The null distribution
+
+The way to approach this is to ask what the world would look like if the null hypothesis (a 50/50 split in the population) were actually true? What would the results of that world look like if we polled it infinite times? 
+
+[More specifically, how often would we get a result 5 or more percentage points away from .5?]{.fragment}
+
+## {.smaller}
+
+```{r}
+#| echo: false
+
+se <- sqrt(.5*.5) / sqrt(600)
+
+myprop <- pnorm(.55, .5, se) - pnorm(.45, .5, se) # not included
+
+ggplot(data.frame(x = c(.4, .6)), 
+       aes(x = x)) +
+  stat_function(fun = dnorm,
+                args = list(mean = .5,
+                            sd = se),
+                color = "#CC0000") +
+  stat_function(fun = dnorm, 
+                args = list(mean = .5,
+                            sd = se),
+                geom = "area", 
+                xlim = c(.45, .55), 
+                fill = "#CC0000", 
+                alpha = 0.6) +
+  annotate("text", 
+           x = .45, 
+           y = 10, 
+           label = "98.6% between \n .45 and .55", 
+           size = 4, 
+           color = "black") +
+  geom_vline(xintercept = .55,
+             linetype = "dashed") +
+  labs(x = "Hypothetical poll result",
+       y = expression(phi(x)))
+```
+
+If the null were true, we'd only expect to get a value this far away from the expected null value 1.4% of the time. This is called a **p-value**.
+
+## Tails and tests
+
+The unshaded area of the last graph represents 1.4% of the area of the sampling distribution. But why are we using the left and right sides? Why not just use the right side and get a p-value of 0.7%? After all, it is true that we'd only expect to get a value _as large as_ .55 in a sample 0.7% of the time.
+
+[The use of **two-tailed tests** rather than **one-tailed tests** is ubiquitous in sociology. It's regarded as "conservative" even though there is usually not a good rationale for it.]{.fragment}
+
+:::{.fragment .callout-note .absolute style="top: 75%;"}
+We haven't actually talked about how to use these for a "test" yet, but we're close!
+:::
+
+## z-score "weirdness"
+
+We can approach this issue more generally through z-scores. What is the standard error of the null sampling distribution? Recall that the null proportion is .5 and the sample size is 600. [(It's about .0204.)]{.fragment}
+
+[How "weird" therefore is our result of .55? How many standard errors is it away from the expected value of the null distribution?]{.fragment} [(It's about 2.45 SE away.)]{.fragment}
+
+## From z-score to p-value
+
+The probability of getting an absolute z-score of 2.45 or greater is about .014. We can get that value using R code:
+
+```{r}
+(1 - pnorm(2.45)) * 2 # times 2 for high and low tails
+```
+
+This is called the **p-value** of the test.
+
+## Alpha level
+
+How do we connect these ideas to a hypothesis test? To conduct a hypothesis test, we need an **alpha level** (or $\alpha$ level). This is the proportion of the time we're willing to _falsely_ assert that the observed data did not come from the null distribution.
+
+This is connected to the idea of **type-I error** or the idea of a **false positive**.
+
+In the above case, for example, there is a chance (1.4%) that we could see a polling result as high as 55% (or as low as .45) with our sample size even if the population is actually 50/50.
+
+## Hypothesis test {.smallish}
+
+We're now ready for the algorithm of the hypothesis test:
+
+:::incremental
+
+1. Choose an alpha level (say, .05)
+2. Calculate the observed sample statistic (e.g., .55)
+3. Calculate the absolute difference between the statistic and the expected value under the null (.55 - .50 = .05)
+4. Convert this difference into a z-score using the SE of the sampling distribution (z = .05 / .0204 = 2.45)
+5. Convert the z-score to a p-value (.014)
+6. If the p-value is less than alpha **reject the null hypothesis**; if the p-value is greater than alpha **fail to reject the null hypothesis**.
+:::
+
+## Rejecting (or not) the null
+
+This language can feel weird. We can never accept the null hypothesis because the probability of an exact value (like .5) being true is basically zero. So we can either _reject_ the null hypothesis or _fail to reject it_.
+
+## Conventional alpha levels
+
+The conventional alpha level is .05. Heuristically speaking, this means we're willing to falsely reject the null hypothesis 5% of the time. This value is by no means sacred.
+
+Just as we saw above with confidence intervals, we can pick any value we like, which is both liberating and scary!
+
+## p-values and confidence intervals
+
+There is a close relationship between p-values and confidence intervals. For example, if a 95% confidence interval includes the null value, the p-value of the hypothesis test will be above .05. 
+
+:::fragment
+In our example, the 95% confidence interval for our poll would be [.51, .59]. Since this interval does not include .5, we could decide to reject the null hypothesis on that basis.
+:::
+
+:::fragment
+In fact, because p-values and CIs can both be used for testing, it's usually better to use CIs because they convey the uncertainty of the estimate as well.
+:::
+
+## [a continuous example]
+
+## [p-value pitfalls]
+
+- asterisks as effect sizes (do you have an alpha level or not?)
+- posterior probabilities given the prior probability that a hypothesis is true
+
+## Homework
+
+:::smallish
+
+Conduct four hypothesis tests (two binary, two continuous) using variables you haven't used before. Please do the following:
+
+- choose a reasonable null (although this will be somewhat arbitrary in many cases) 
+- go through the whole algorithm and interpret each step correctly 
+- use at least two different alpha levels throughout the homework (but just one per variable)
+- compare the hypothesis test results to confidence intervals to improve your intuition
+- as always, do at least one visualization per test
+
+:::
 
 
 
