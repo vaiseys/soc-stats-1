@@ -6,7 +6,7 @@ execute:
   echo: true
   warning: false
   freeze: auto
-  cache: true
+  cache: false
 format: 
   revealjs:
     theme: [default, inverse.scss, custom.scss]
@@ -53,14 +53,14 @@ You will need the following packages to run everything in this course.
 #| include: false
 #| execute: false
 
-install.packages(c("gapminder",
-                   "tidyverse",
-                   "tinytable",
-                   "venn"),
-                 dependencies = TRUE)
-
-install.packages('gssr', repos =
-  c('https://kjhealy.r-universe.dev', 'https://cloud.r-project.org'))
+# install.packages(c("gapminder",
+#                    "tidyverse",
+#                    "tinytable",
+#                    "venn"),
+#                  dependencies = TRUE)
+# 
+# install.packages('gssr', repos =
+#   c('https://kjhealy.r-universe.dev', 'https://cloud.r-project.org'))
 
 ```
 
@@ -79,7 +79,6 @@ Questions?
 #| echo: false
 #| message: false
 #| warning: false
-#| cache: false
 
 library(tidyverse)
 library(gapminder)
@@ -1508,9 +1507,10 @@ d |>
   group_by(wordsum) |> 
   summarize(p = n() / nrow(d)) |> 
   mutate(cp = cumsum(p)) |> 
-  ggplot(aes(x = wordsum,
-             y = cp)) +
-  stat_ecdf(geom = "step", color = "blue") +  
+  ggplot() +
+  stat_ecdf(aes(x = wordsum + .5, # shift to center of implied bar
+                y = cp),
+            geom = "step", color = "blue") +  
   stat_function(fun = pnorm,
                 args = list(mean = mean(d$wordsum),
                             sd = sd(d$wordsum)),
