@@ -56,7 +56,8 @@ You will need the following packages to run everything in this course.
 # install.packages(c("gapminder",
 #                    "tidyverse",
 #                    "tinytable",
-#                    "venn"),
+#                    "venn",
+#                    "here",
 #                  dependencies = TRUE)
 # 
 # install.packages('gssr', repos =
@@ -83,6 +84,7 @@ Questions?
 library(tidyverse)
 library(gapminder)
 library(tinytable)
+library(here)
 
 theme_set(theme_light())
 
@@ -701,15 +703,23 @@ install.packages('gssrdoc', repos =
 ## Getting the 2022 survey
 
 ```{r}
-#| cache: true
+#| execute: false
 
 library(gssr)
 
 gss2022 <- gss_get_yr(year = 2022) |> # get 2022
   haven::zap_labels()                 # remove Stata value labels
+```
 
+```{r}
+#| echo: false
+gss2022 <- readRDS(here("data", "gss2022.RDS"))
 glimpse(gss2022)
 ```
+
+:::note
+The first doesn't actually run so that I don't redownload the data every time. The hidden block loads the data from memory.
+:::
 
 ## Introducing `abany`
 
@@ -1623,7 +1633,7 @@ For a variable, $X$, $\text{Var}[X] = p(1-p)$. [Therefore it's also true that $\
 
 The normal distribution can be derived as the sum of many Bernoulli trials. For example, imagine we start with 100 people standing on the halfway line of a football field. Each person flips a coin and, if it's heads, takes a step forward (say one meter). If tails, they take a step backward (one meter). What would things look like after 100 trials?
 
-## 
+## Physical simulation
 
 {{< video https://www.youtube.com/embed/EvHiee7gs9Y?si=T-5caxz2U12ok3RK >}}
 
@@ -1957,13 +1967,23 @@ We're now ready for the algorithm of the hypothesis test:
 6. If the p-value is less than alpha **reject the null hypothesis**; if the p-value is greater than alpha **fail to reject the null hypothesis**.
 :::
 
+## Writing the test
+
+Sometimes people write a hypothesis test out formally. Here's an example.
+
+$$
+H_0 : p = .5 \\ H_1 : p \neq .5 
+$$
+
 ## Rejecting (or not) the null
 
-This language can feel weird. We can never accept the null hypothesis because the probability of an exact value (like .5) being true is basically zero. So we can either _reject_ the null hypothesis or _fail to reject it_.
+This language can feel weird. We can never _accept_ the null hypothesis ($H_0$), in part because the probability of an exact value (e.g., .5) being true is basically zero. So we can only either _reject_ the null hypothesis or _fail to reject it_.
+
+[When we reject the null hypothesis, we call a result **statistically significant.** That's literally _all_ that phrase means!]{.fragment}
 
 ## Conventional alpha levels
 
-The conventional alpha level is .05. Heuristically speaking, this means we're willing to falsely reject the null hypothesis 5% of the time. This value is by no means sacred.
+The conventional alpha level for a test is .05. Heuristically speaking, this means we're willing to falsely reject the null hypothesis 5% of the time. This value is by no means sacred. In fact, it is fundamentally arbitrary.
 
 Just as we saw above with confidence intervals, we can pick any value we like, which is both liberating and scary!
 
@@ -1979,12 +1999,17 @@ In our example, the 95% confidence interval for our poll would be [.51, .59]. Si
 In fact, because p-values and CIs can both be used for testing, it's usually better to use CIs because they convey the uncertainty of the estimate as well.
 :::
 
-## [a continuous example]
+## Continuous variables
 
-## [p-value pitfalls]
+The same logic applies to continuous variables in exactly the same way. The only difference is the calculation of the standard error, which relies on the standard deviation.
 
-- asterisks as effect sizes (do you have an alpha level or not?)
-- posterior probabilities given the prior probability that a hypothesis is true
+## p-value pitfalls
+
+People sometimes say and do stupid things with p-values. Here are some tips:
+
+- Don't use asterisks as informal indicators of "how big" an effect is (do you have an alpha level or not?)
+- Don't mistake "statistical significance" for importance
+- When assessing the plausibility of a hypothesis, you need to know the **prior probability** of the hypothesis as well as the p-value. [Bayes' Rule...]
 
 ## Homework
 
@@ -2000,6 +2025,340 @@ Conduct four hypothesis tests (two binary, two continuous) using variables you h
 
 :::
 
+# Comparing Two Groups {.inverse}
+
+## Overview
+
+We learned about univariate confidence intervals and tests against a **point null hypothesis** because they are relatively simple. But most things in social science are about _comparison_ between groups or levels. We are going to start with two-group comparisons and then move to a more general framework in the next section.
+
+## Education and abortion rights
+
+As usual, we will start with simulation. Let's go back to `abany`. Do college-educated and non-college educated people have different levels of support for abortion rights? Let's set up the data.
+
+```{r}
+dab <- gss2022 |> 
+  select(abany, degree) |> 
+  drop_na() |> 
+  mutate(abany = if_else(abany == 1, 1, 0),
+         college = if_else(degree >= 3, "BA+", "<BA"))
+```
+
+## Visualizing the difference
+
+```{r}
+#| echo: false
+
+dab |> 
+  group_by(college) |> 
+  summarize(prop = mean(abany)) |> 
+  ggplot(
+    aes(x = college,
+        y = prop * 100)) +
+  geom_col() +
+  ylim(0, 100) +
+  labs(title = "Support for abortion rights by education",
+       x = "Degree status",
+       y = "% supporting",
+       caption = "Source: 2022 GSS")
+
+p1 <- mean(dab$abany[dab$college=="BA+"])
+p2 <- mean(dab$abany[dab$college=="<BA"])
+
+```
+
+## Inference to the population
+
+In the sample, we see that there is a difference. Among those with college degrees, `r round(p1, 2)` support. Among those without, `r round(p2, 2)` support. But is there a difference in the population? We can set up the question like this:
+
+$$
+H_0: p_{\tiny{BA+}} = p_{\tiny{<BA}} \\ H_1: p_{\tiny{BA+}} \neq p_{\tiny{<BA}}
+$$
+
+## Test as difference
+
+There's another way we could set this up, however, which makes it clearer how we might test it.
+
+$$
+H_0: p_{\tiny{BA+}} - p_{\tiny{<BA}} = 0 \\ H_1: p_{\tiny{BA+}} - p_{\tiny{<BA}} \neq 0
+$$
+
+## The null distribution
+
+Testing this requires setting up a world where the proportions _are_ the same in the two groups and then evaluating how often we get a difference as large as we do in the sample. This is very much like we did before when we set up a null polling distribution where the true value was .5 and then seeing how often we got a departure from _that value_ as large as in the sample.
+
+## Simulation function {.smallish}
+
+```{r}
+# based on empirical values
+pooled_prop <- mean(dab$abany)
+n1 <- dab |> filter(college == "BA+") |> nrow()
+n2 <- dab |> filter(college == "<BA") |> nrow()
+
+# function
+## set up df and random gen abany
+null_diff <- function(p, n1, n2) {
+  tmp <- tibble(
+    id = 1:(n1 + n2),                  # number of cases
+    college = c(rep("BA+", n1),        # correct Ns
+                rep("<BA", n2))) |>   
+    mutate(abany = rbinom(1, 1, p),    # fake abany
+           .by = id)                   # rowwise() like
+
+## spit out diff
+mean(tmp$abany[tmp$college == "BA+"]) -  
+mean(tmp$abany[tmp$college == "<BA"])
+
+}
+```
+
+## Simulation
+
+```{r}
+set.seed(722)
+
+# draw 5000 diffs from null distribution
+abany_null_sims <-
+  tibble(
+    sim_id = 1:2000) |> 
+  mutate(diff = null_diff(pooled_prop, n1, n2),
+         .by = sim_id)
+```
+
+## Results
+
+```{r}
+#| echo: false
+
+ggplot(
+  abany_null_sims,
+  aes(x = diff)) +
+  geom_density(alpha = .4,
+               fill = "#CC0000",
+               color = NA)
+```
+
+## Interpreting the test
+
+The simulation results vary from `r round(min(abany_null_sims$diff), 3)` to `r round(max(abany_null_sims$diff), 3)`. This doesn't _exactly_ mean a p-value of zero, but we didn't find _any_ differences as large as the real data in 2000 tries.
+
+We would certainly reject the null hypothesis of no difference under any realistic alpha level here.
+
+## Simulating the confidence interval
+
+We could also use the real data to simulate the confidence interval of the difference. Instead of resampling from the null distribution, we can resample from the _observed_ distribution. This is called **bootstrapping**.
+
+```{r}
+get_diff <- function() {
+  tmp <- slice_sample(dab,               # sample
+                      n = nrow(dab),     # same size
+                      replace = TRUE)    # with replacement
+  
+mean(tmp$abany[tmp$college == "BA+"]) -  # get diff
+mean(tmp$abany[tmp$college == "<BA"])
+}
+```
+
+## Simulation
+
+```{r}
+#| cache: true
+
+set.seed(722)
+
+# draw 5000 diffs from null distribution
+abany_boot_diffs <-
+  tibble(
+    sim_id = 1:2000) |> 
+  mutate(diff = get_diff(),
+         .by = sim_id)
+```
+
+## Results
+
+```{r}
+#| echo: false
+
+ggplot(
+  abany_boot_diffs,
+  aes(x = diff)) +
+  geom_density(alpha = .4,
+               fill = "#CC0000",
+               color = NA)
+```
+
+## Interpretation {.smallish}
+
+Here is the 99% confidence interval of the difference based on the **percentile bootstrap**.
+
+```{r}
+quantile(abany_boot_diffs$diff, c(.005, .995)) |> 
+  round(3)
+```
+
+Here is the 99% confidence interval based on the **normal bootstrap**.
+
+```{r}
+obsdiff <-  # ACTUAL difference
+  mean(dab$abany[dab$college == "BA+"]) -
+  mean(dab$abany[dab$college == "<BA"])
+bootsd <- sd(abany_boot_diffs$diff)
+
+c(obsdiff - 2.57 * bootsd,
+  obsdiff + 2.57 * bootsd) |> round(3)
+```
+
+Neither includes zero, suggesting a population difference.
+
+## Analytic hypothesis test {.smallish}
+
+We can do these things without simulation. Here is the analytic test for a difference in proportions, where $\hat{p}$ is just the observed whole sample proportion.
+
+$$
+Z=\dfrac{(\hat{p}_1-\hat{p}_2)}{\sqrt{\hat{p}(1-\hat{p})\left(\dfrac{1}{n_1}+\dfrac{1}{n_2}\right)}}
+$$
+We just turn this z-value into a p-value and compare to alpha.
+
+## Example
+
+We have most of the values we need from above already. But here are two more, the formula, and the results.
+
+```{r}
+p1 <- mean(dab$abany[dab$college=="BA+"])
+p2 <- mean(dab$abany[dab$college=="<BA"])
+
+zstat <- 
+  (p1 - p2) /
+  sqrt(pooled_prop * (1 - pooled_prop) * (1 / n1 + 1 / n2))
+
+zstat                     # z-statistic
+(1 - pnorm(zstat)) * 2    # two-sided p-value
+```
 
 
+## Analytic confidence interval {.smallish}
+
+To get a confidence interval, you need the **standard error of the difference** and then you just calculate it the usual way (e.g., $\pm$ 2.57 SEs. The formula for the SE is:
+
+$$
+\text{SE}_{\text{diff}} = \sqrt{ \frac{\hat{p}_1(1-\hat{p}_1)}{n_1} + \frac{\hat{p}_2(1-\hat{p}_2)}{n_2}}
+$$
+
+```{r}
+#| echo: false
+
+sediff <- sqrt( p1*(1-p1) / n1 + p2*(1-p2) / n2 )
+lower <- obsdiff - 2.57 * sediff
+upper <- obsdiff + 2.57 * sediff
+```
+
+This gives us a SE of `r round(sediff, 3)` and a 99% CI of \[`r round(lower, 3)`, `r round(upper, 3)`\]. This is quite close to the bootstrap estimates.
+
+## Extending to continuous variables
+
+I am not going to prove to you that simulations work just as well for continuous variables. For example, we could ask whether older people really score better on `wordsum`.
+
+```{r}
+dword <- gss2022 |> 
+  select(wordsum, age) |> 
+  drop_na() |> 
+  mutate(agecat = if_else(age > 46, "older", "younger"))
+```
+
+## Visualizing the difference
+
+```{r}
+#| echo: false
+
+dword |> 
+  summarize(mwords = mean(wordsum), .by = agecat) |> 
+  ggplot(
+    aes(x = agecat,
+        y = mwords)) +
+  geom_col() +
+  ylim(0, 10) +
+  labs(title = "vocabulary score by age group",
+       x = "Age group (older = 47+)",
+       y = "Mean score (0-10)",
+       caption = "Source: 2022 GSS")
+```
+
+## Visualizing the distribution
+
+```{r}
+#| echo: false
+
+dword |> 
+  ggplot(
+    aes(x = wordsum,
+        fill = agecat)) +
+  geom_density(alpha = .5,
+               color = NA)
+```
+
+## Hypothesis test
+
+The setup for the test is very similar for means as for proportions. Only the typical Greek letter changes.
+
+$$
+H_0: \mu_{\tiny{older}} - \mu_{\tiny{younger}} = 0 \\ H_1: \mu_{\tiny{older}} - \mu_{\tiny{younger}} \neq 0
+$$
+
+## Analytic solution
+
+As we will very briefly discuss, people often use something called a **t-test** for comparing differences in means. For now, we're going to stick with our approach based on z-scores and the normal distribution. The formula is:
+
+$$
+Z = \frac{\bar{X}_1 - \bar{X}_2}{\sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}}
+$$
+```{r}
+#| echo: false
+
+m1 <- mean(dword$wordsum[dword$agecat=="older"])
+m2 <- mean(dword$wordsum[dword$agecat=="younger"])
+
+s1 <- sd(dword$wordsum[dword$agecat=="older"])
+s2 <- sd(dword$wordsum[dword$agecat=="younger"])
+
+n1 <- length(dword$wordsum[dword$agecat=="older"])
+n2 <- length(dword$wordsum[dword$agecat=="younger"])
+
+zstat <- (m1-m2) / sqrt((s1^2/n1) + (s2^2/n2))
+
+pval <- (1 - pnorm(zstat)) * 2    # two-sided p-value
+
+```
+
+The z-statistic is `r zstat` and the p-value is `r pval`. Looks like the difference in the population probably isn't exactly zero!
+
+## Analytic confidence interval
+
+The confidence interval is the same, based on the denominator of the z-test as before:
+
+$$
+\text{SE}_{\text{diff}} = \sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}
+$$
+
+```{r}
+#| echo: false
+
+obsdiff <- m1-m2
+sediff <- sqrt((s1^2/n1) + (s2^2/n2))
+
+lower <- obsdiff - 2.57 * sediff
+upper <- obsdiff + 2.57 * sediff
+```
+
+So the 99% confidence interval would be \[`r round(lower, 2)`, `r round(upper, 2)`\].
+
+## Student's t-distribution
+
+[to be added]
+
+## Summary
+
+The simplest social science questions are about _comparing groups_. Comparing means and proportions across just two groups are the simplest versions of this but give you all the basic ideas. The only real difference between the binary and continuous cases is, once again, that the SD is its "own thing" in the continuous case rather than a function of the central tendency, as in the Bernoulli case.
+
+## Homework
+
+Compare two groups on two binary and two continuous variables. Do hypothesis tests and confidence intervals. State the null hypotheses and the alternatives. To receive full credit, don't use the same grouping variable for all four; use at least two different grouping variables.
 
