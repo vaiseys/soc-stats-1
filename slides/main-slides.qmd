@@ -6,7 +6,7 @@ execute:
   echo: true
   warning: false
   freeze: auto
-  cache: false
+  cache: true
 format: 
   revealjs:
     theme: [default, inverse.scss, custom.scss]
@@ -688,9 +688,7 @@ The General Social Survey is a **repeated cross-sectional** survey that has been
 
 Install Kieran Healy's `gssr` package using the code below. You only have to do this once.
 
-```{r}
-#| eval: false
-
+```
 # Install 'gssr' from 'ropensci' universe
 install.packages('gssr', repos =
   c('https://kjhealy.r-universe.dev', 'https://cloud.r-project.org'))
@@ -702,9 +700,7 @@ install.packages('gssrdoc', repos =
 
 ## Getting the 2022 survey
 
-```{r}
-#| execute: false
-
+```
 library(gssr)
 
 gss2022 <- gss_get_yr(year = 2022) |> # get 2022
@@ -713,11 +709,12 @@ gss2022 <- gss_get_yr(year = 2022) |> # get 2022
 
 ```{r}
 #| echo: false
-gss2022 <- readRDS(here("data", "gss2022.RDS"))
-glimpse(gss2022)
+
+gss2022 <- readRDS(here::here("data", "gss2022.RDS"))
+dplyr::glimpse(gss2022)
 ```
 
-:::note
+:::notes
 The first doesn't actually run so that I don't redownload the data every time. The hidden block loads the data from memory.
 :::
 
@@ -2211,16 +2208,16 @@ Neither includes zero, suggesting a population difference.
 
 ## Analytic hypothesis test {.smallish}
 
-We can do these things without simulation. Here is the analytic test for a difference in proportions, where $\hat{p}$ is just the observed whole sample proportion.
+We can do these things without simulation. Here is the analytic test for a difference in proportions:
 
 $$
-Z=\dfrac{(\hat{p}_1-\hat{p}_2)}{\sqrt{\hat{p}(1-\hat{p})\left(\dfrac{1}{n_1}+\dfrac{1}{n_2}\right)}}
+Z=\dfrac{\hat{p}_1-\hat{p}_2}{\sqrt{ \frac{\hat{p}_1(1-\hat{p}_1)}{n_1} + \frac{\hat{p}_2(1-\hat{p}_2)}{n_2}}}
 $$
 We just turn this z-value into a p-value and compare to alpha.
 
 ## Example
 
-We have most of the values we need from above already. But here are two more, the formula, and the results.
+Let's use the information we have to calculate the test statistic and p-value.
 
 ```{r}
 p1 <- mean(dab$abany[dab$college=="BA+"])
@@ -2228,7 +2225,7 @@ p2 <- mean(dab$abany[dab$college=="<BA"])
 
 zstat <- 
   (p1 - p2) /
-  sqrt(pooled_prop * (1 - pooled_prop) * (1 / n1 + 1 / n2))
+  sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
 
 zstat                     # z-statistic
 (1 - pnorm(zstat)) * 2    # two-sided p-value
@@ -2292,7 +2289,9 @@ dword |>
     aes(x = wordsum,
         fill = agecat)) +
   geom_density(alpha = .5,
-               color = NA)
+               color = NA,
+               adjust = 1.5) +
+  theme_light()
 ```
 
 ## Hypothesis test
@@ -2305,7 +2304,7 @@ $$
 
 ## Analytic solution
 
-As we will very briefly discuss, people often use something called a **t-test** for comparing differences in means. For now, we're going to stick with our approach based on z-scores and the normal distribution. The formula is:
+As we will discuss soon, we often use something called a **t-test** for comparing differences in means. For now, we're going to stick with our approach based on z-scores and the normal distribution. The formula is:
 
 $$
 Z = \frac{\bar{X}_1 - \bar{X}_2}{\sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}}
@@ -2328,7 +2327,7 @@ pval <- (1 - pnorm(zstat)) * 2    # two-sided p-value
 
 ```
 
-The z-statistic is `r zstat` and the p-value is `r pval`. Looks like the difference in the population probably isn't exactly zero!
+The z-statistic is `r round(zstat, 3)` and the p-value is `r pval`. Looks like the difference in the population probably isn't exactly zero!
 
 ## Analytic confidence interval
 
@@ -2350,15 +2349,486 @@ upper <- obsdiff + 2.57 * sediff
 
 So the 99% confidence interval would be \[`r round(lower, 2)`, `r round(upper, 2)`\].
 
-## Student's t-distribution
+## Student's t-distribution {.smaller}
 
-[to be added]
+```{r}
+#| echo: false
 
-## Summary
+# Define a sequence of x values
+x_vals <- seq(-4, 4, length.out = 1000)
 
-The simplest social science questions are about _comparing groups_. Comparing means and proportions across just two groups are the simplest versions of this but give you all the basic ideas. The only real difference between the binary and continuous cases is, once again, that the SD is its "own thing" in the continuous case rather than a function of the central tendency, as in the Bernoulli case.
+# Define degrees of freedom to show convergence
+dfs <- c(1, 3, 10, 30, 100)
+
+# Create a data frame with density values for each df
+t_dist_data <- expand.grid(x = x_vals, df = dfs) |> 
+  mutate(density = dt(x, df))
+
+# Normal distribution data for comparison
+normal_data <- data.frame(
+  x = x_vals,
+  density = dnorm(x_vals),
+  df = Inf
+)
+
+# Combine both data sets
+plot_data <- bind_rows(t_dist_data, normal_data)
+
+# Plot
+ggplot(plot_data, aes(x = x, y = density, color = factor(df))) +
+  geom_line(linewidth = 1) +
+  scale_color_viridis_d(name = "df", end = 0.9) +
+  theme_minimal() +
+  labs(
+    title = "Convergence of the t-Distribution to the Normal",
+    x = "x",
+    y = "Density"
+  ) +
+  theme(legend.position = "right")
+```
+
+Don't worry _too_ much about "degrees of freedom" (df). This means how many independent pieces of information are left after calculating means. For a two-group comparison where both groups have equal SDs, it's roughly $df = n-2$.
+
+## Using t-statistics
+
+We use t-statistics the same as z-statistics: by converting them into p-values or using them as the basis of a confidence interval. With two groups of 20 and a t-statistic (difference / SE) of 2, we'd get:
+
+```{r}
+# p-value
+(1 - pt(2, df = 38)) * 2
+
+# confidence interval width (95%)
+qt(.975, df = 38)
+```
+
+We would fail to reject the null with an alpha of .05 here.
+
+## Effect sizes
+
+"Statistical significance" is just about rejecting the null hypothesis of _zero difference_. This is often not very impressive. We need a way of talking about how big a difference is that is not dependent on a p-value.
+
+[The **effect size** is a standard way of comparing two groups regardless of the units of the original variable]{.fragment}
+
+## Example
+
+```{r}
+#| echo: false
+
+tvdata <- gss2022 |> 
+  select(tvhours, degree) |> 
+  drop_na() |> 
+  mutate(college = if_else(degree >= 3, "BA", "no BA"))
+
+m1 <- mean(tvdata$tvhours[tvdata$college == "BA"])
+m2 <- mean(tvdata$tvhours[tvdata$college == "no BA"])
+
+s1 <- sd(tvdata$tvhours[tvdata$college == "BA"])
+s2 <- sd(tvdata$tvhours[tvdata$college == "no BA"])
+
+n1 <- length(tvdata$tvhours[tvdata$college == "BA"])
+n2 <- length(tvdata$tvhours[tvdata$college == "no BA"])
+
+zstat <- (m1 - m2) / sqrt((s1^2/n1) + (s2^2/n2))
+
+pval <- pnorm(zstat) * 2    # two-sided p-value
+
+```
+
+In the 2022 GSS, college-educated respondents watch `r round(m1, 2)` hours of TV per day while the non-college educated watch `r round(m2, 2)` hours per day. That's a difference of `r round(abs(m1-m2), 2)` hours. Is that a small or large difference?
+
+[The p-value is about $1.5 \times 10^{-18}$, so we're _really_ confident the difference isn't zero in the population. But that's a lot about the sample size! A p-value doesn't tell you about the size of the difference.]{.fragment}
+
+## Visualizing the difference
+
+```{r}
+#| echo: false
+
+ggplot(tvdata,
+       aes(x = tvhours,
+           fill = college)) +
+  geom_density(color = NA,
+               alpha = .4,
+               adjust = 2.5) +
+  geom_vline(xintercept = c(m1, m2),
+             linetype = "dotted")
+```
+
+## Calculating the effect size
+
+$$
+d = \frac{\bar{x}_1 - \bar{x}_2}{s}
+$$
+
+This is a simple measure of effect size, often called **Cohen's _d_**. In this case it's `r round((m1-m2) / sd(tvdata$tvhours), 2)`. (It's negative because the college group watches less.) This is also called a **standardized mean difference.**
+
+This means that there is a difference of `r round(abs((m1-m2) / sd(tvdata$tvhours)), 2)` standard deviations between the groups.
+
+## Probability of superiority
+
+```{r}
+#| echo: false
+
+library(effectsize)
+
+ps1 <- p_superiority(tvhours ~ college,
+                     data = tvdata,
+                     parametric = TRUE) # use normal approx.
+
+ps2 <- p_superiority(tvhours ~ college,
+                     data = tvdata,
+                     parametric = FALSE) # calculate directly
+```
+
+I've never seen anyone in sociology report this, but one good way to think about effect size is the **probability of superiority**. This is the probability that a randomly selected member of the first group (college) watches TV more than a randomly selected member of the second group (no college). 
+
+[The value here is `r round(ps1$p_superiority, 3)` if we assume two normal distributions and `r round(ps2$p_superiority, 3)` if we calculate it directly from the data. You can get these easily in R using the `effectsizes` package.]{.fragment}
+
+## Power {.smallish}
+
+Because effect size and "significance" are _not_ the same thing, we need to think about the relationship between effect size and our ability to reject the null. This is called **power**, which is the probability of rejecting the null hypothesis given:
+
+1. a specific study design (e.g., two groups of 100 respondents)
+2. a specific alpha level (e.g., .05)
+2. a specified minimum effect size (e.g., .25 standard deviations)
+
+Generally, we want power (sometimes confusingly called $\beta$) to be .8 or greater, although this is just as arbitrary as any other guideline.
+
+## Example
+
+Imagine in the population there is a .25 SD difference in some outcome (e.g., wordsum score) between two groups. If we take samples of 30 from each group, how often would we be able to "detect" the difference (e.g., reject the null hypothesis)?
+
+As you might imagine, we are going to do this via simulation first.
+
+## Simulation function
+
+```{r}
+mytest <- function(n = NULL, d = NULL, alpha = NULL) {
+  
+  tmp1 <- tibble(group = "A", y = rnorm(mean = d,  # group A
+                                        sd = 1,
+                                        n = n))
+  
+  tmp2 <- tibble(group = "B", y = rnorm(mean = 0,  # group B
+                                        sd = 1,
+                                        n = n))
+  
+  tmp <- bind_rows(tmp1, tmp2)                     # bind together
+  
+  tt <- t.test(y ~ group, data = tmp)              # t-test
+  
+  return(if_else(tt$p.value < alpha, 1, 0))        # null rejected?
+  
+}
+
+```
+
+## Low power simulation
+
+Let's do this simulation 1000 times.
+
+```{r}
+set.seed(722)
+
+mysims <- tibble(sim_id = 1:1000) |> 
+  mutate(reject_null = mytest(n = 30, 
+                              d = .25, 
+                              alpha = .05), 
+         .by = sim_id)
+
+mean(mysims$reject_null)
+```
+
+We can only reject the null here about `r mean(mysims$reject_null) * 100`\% of the time even though there's a real difference. A study like this isn't worth doing!
+
+## High power simulation
+
+What if we increase the sample size of each group to 300? How does that affect our power?
+
+```{r}
+set.seed(722)
+
+mysims <- tibble(sim_id = 1:1000) |> 
+  mutate(reject_null = mytest(n = 300, 
+                              d = .25, 
+                              alpha = .05), 
+         .by = sim_id)
+
+mean(mysims$reject_null)
+```
+
+We can  reject the null here about `r mean(mysims$reject_null) * 100`\% of the time. This is clearly much better! 
+
+## Analytic solution {.smaller}
+
+Power is important to compute, especially when we are collecting our own data. For something as simple as a t-test, we can use the base R function, `power.t.test()`.
+
+::::columns
+
+:::column
+```{r}
+power.t.test(n = 30, 
+             delta = .25, 
+             sig.level = .05)
+```
+:::
+
+:::column
+```{r}
+power.t.test(n = 300, 
+             delta = .25, 
+             sig.level = .05)
+```
+:::
+
+::::
+
+:::{.callout-note .absolute style="top: 70%; font-size: 130%;"}
+Just as $\alpha$ is the Type I (or false-positive) error rate, $1-\beta$ is the Type II (or false-negative) error rate. 
+:::
+
+## Sample size calculation {.smallish}
+
+You can also do other power calculations:
+
+::::columns
+:::column
+#### How big a sample?
+```{r}
+power.t.test(n = NULL, 
+             sd = 1,
+             delta = .25,
+             sig.level = .05, 
+             power = .8)
+```
+:::
+
+:::column
+#### How small an effect?
+```{r}
+power.t.test(n = 100, 
+             sd = 1, 
+             delta = NULL,
+             sig.level = .05, 
+             power = .8)
+```
+:::
+
+::::
+
+## Summary {.smallish}
+
+* The simplest social science questions are about _comparing groups_. 
+* Comparing means or proportions across two groups is the simplest version of this but gives you all the basic ideas. 
+* The only real difference between the binary and continuous cases is the SD calculation.
+* Pay attention to effect size, not just "significance."
+* Instead of asking "what about power?" in theory class, ask it about your research design.
 
 ## Homework
 
-Compare two groups on two binary and two continuous variables. Do hypothesis tests and confidence intervals. State the null hypotheses and the alternatives. To receive full credit, don't use the same grouping variable for all four; use at least two different grouping variables.
+Compare two groups on two binary and two continuous variables. Do hypothesis tests and confidence intervals. State the null hypotheses and the alternatives. Calculate and interpret effect sizes. To receive full credit, don't use the same grouping variable for all four; use at least two different grouping variables.
 
+# Models {.inverse}
+
+## Models vs. tests
+
+We just talked about z-tests and t-tests. You may have heard of many other statistical tests in your life, like ANOVA, chi-square, Fisher's exact test, Wilcoxon's rank sum test, and many others.
+
+Instead of doing this, we are going to think of all "tests" as **statistical models** with different assumptions.
+
+## Functions
+
+You have learned about **functions** in R, which take some _input_ and use some kind of rule to produce an _output_. Like the function `mean()` takes a vector of numbers and gives you its mean.
+
+In math, a function like $y = 3x$ is similar. It takes an input ($x$) and produces an output ($y$). All statistical models are like this.
+
+##
+
+```{r}
+#| echo: false
+
+plot_data <- 
+  tibble(x = seq(0, 10, 1),
+         y = 3*x)
+
+ggplot(plot_data,
+       aes(x = x,
+           y = y)) +
+  geom_line(color = "#CC0000") +
+  scale_x_continuous(breaks = 0:10) +
+  scale_y_continuous(breaks = seq(0, 30, 3)) +
+  theme_light()
+```
+
+## Univariate models {.smallish}
+
+We can write a model for something as simple as the observed values of a single variable. Consider `wordsum`; if we want to write a model for each individual observation, we could write something like this:
+
+$$
+\text{wordsum}_i = \text{mean} + \text{weirdness}_i
+$$
+
+This means that everyone starts at the same place and then departs from it in some way due to their "weirdness" (i.e., difference from what is typical). 
+
+:::callout-note
+The mean doesn't have a subscript because everyone shares the same one; "weirdness" does because everyone is weird in their own way.
+:::
+
+## Simplest model
+
+We usually write such a model like this:
+
+$$
+\begin{align}
+    y_i &= \mu + \epsilon_i \\
+    \epsilon_i &\sim \mathcal{N}(0, \sigma)
+\end{align}
+$$
+
+The second line means that the "weirdness" ($\epsilon_i$) is _normally distributed_, meaning that less weirdness is more common than more weirdness!
+
+## DGPs, models, parameters
+
+We think of this model as the **data-generating process**. Of course it's very simple, but that's why it's a _model_. If we want to **estimate a model**, we use real sample data to get plausible **estimates** of the relevant **parameters** from the population. In this case, the things we need to estimate are $\mu$ and $\sigma$.
+
+## Estimates
+
+Let's say our outcome variable is `wordsum`. How can we estimate the model parameters from the GSS data? 
+
+- $\hat{\mu}$ = `mean(dword$wordsum)`
+- $\hat{\sigma}$ = `sd(dword$wordsum)`
+
+So the estimated values are `r round(mean(dword$wordsum), 2)` and `r round(sd(dword$wordsum), 2)`, respectively.
+
+## The model is a model
+
+```{r}
+#| echo: false
+#| fig-align: center
+
+ggplot(dword,
+       aes(x = wordsum)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 binwidth = 1,
+                 color = "white",
+                 alpha = .5) +
+  stat_function(fun = dnorm,
+                geom = "area",
+                args = list(mean = mean(dword$wordsum), 
+                            sd = sd(dword$wordsum)),
+                color = NA,
+                fill = "#CC0000",
+                alpha = .5) + 
+  scale_x_continuous(breaks = -1:13,
+                     limits = c(-1, 13)) +
+  labs(x = "Words Correct",
+       y = "Density",
+       caption = "Source: 2022 General Social Survey",
+       title = "Model \"predictions\"")
+```
+
+## Using `lm()`
+
+Using `mean()` and `sd()` are fine now, but they are going to become useless pretty fast.  We can use the **`lm()`** function instead, which allows much more complicated stuff. 
+
+Here's the syntax for a model estimating `wordsum`. Don't worry too much about the syntax yet, though `~` is how we tell R that we are giving it a **formula**.
+
+```{r}
+mymodel <- lm(wordsum ~ 1, data = dword)
+```
+
+## Using `summary()` {.smallish}
+
+::::columns
+
+:::{.column width="60%"}
+```{r}
+summary(mymodel)
+```
+:::
+
+:::{.column width="40%"}
+:::callout-note
+`(Intercept)` gives us $\hat{\mu}$, its SE, and the test of the zero null (which makes no sense here). The "residual standard error" is the estimate of $\hat{\sigma}$. Ignore the dumb stars.
+:::
+:::
+
+::::
+
+## From t-test to model
+
+Again, we usually want to compare two groups. That's what we were doing with the t-test. If we want to compare the `wordsum` scores of older and younger respondents (like we did above) we can write it like this:
+
+$$
+\begin{align}
+    \text{wordsum}_i &= \alpha + \beta(\text{older}_i) + \epsilon_i \\
+    \epsilon_i &\sim \mathcal{N}(0, \sigma)
+\end{align}
+$$
+
+Now $\alpha$ is $\bar{x}_{\text{younger}}$ and $\beta$ is the _difference_: $(\bar{x}_{\text{older}}- \bar{x}_{\text{younger}})$.
+
+## The null hypothesis
+
+In this case, we have a new way of writing the null hypothesis:
+
+$$
+    \mathcal{H}_0:\beta=0 \\
+    \mathcal{H}_1:\beta \neq 0
+$$
+
+The null hypothesis that some **beta coefficient** is equal to zero is pretty much your life now.
+
+## Estimating {.smallish}
+
+::::columns
+
+:::{.column width="60%"}
+```{r}
+dword <- dword |> 
+  mutate(older = if_else(agecat == "older", 1, 0))
+mod2 <- lm(wordsum ~ 1 + older, data = dword)     
+summary(mod2)                                     
+```
+:::
+
+:::{.column width="40%"}
+:::callout-tip
+There's a lot here you don't need to worry about. The core thing to look at is the test of the beta coefficent, which is `older` here. How would you manually construct a confidence interval here?
+:::
+:::
+
+::::
+
+## Using `broom::tidy()`
+
+Here's a tidier way to look at coefficients than `summary()`:
+
+```{r}
+broom::tidy(mod2, 
+            conf.int = TRUE,
+            conf.level = .99)
+```
+
+## Comparing to t-test {.smallish}
+
+You can see here that the confidence interval, etc., reported by `t.test()` is the same. 
+
+::::columns
+
+:::{.column width="60%"}
+```{r}
+t.test(wordsum ~ agecat, 
+       data = dword,
+       var.equal = TRUE,
+       conf.level = .99)
+```
+:::
+
+:::{.column width="40%"}
+:::callout-tip
+## Equal variances
+A regression like this assumes that the groups have _equal variances_. (This is why I set `var.equal = TRUE` in the t-test function.) This usually doesn't matter unless you have small samples and unequal sample sizes between the two groups.
+:::
+:::
+
+::::
