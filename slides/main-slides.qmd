@@ -2723,7 +2723,8 @@ ggplot(dword,
   labs(x = "Words Correct",
        y = "Density",
        caption = "Source: 2022 General Social Survey",
-       title = "Model \"predictions\"")
+       title = "Model \"predictions\"") +
+  theme_light()
 ```
 
 ## Using `lm()`
@@ -2832,3 +2833,285 @@ A regression like this assumes that the groups have _equal variances_. (This is 
 :::
 
 ::::
+
+## Homework {.smaller}
+
+Please build on and extend the homework that was due this week. I will count this homework for BOTH week 7 and week 8. Here is what I'd like you to do:
+
+- keep the binary two-group comparisons as you have them already (assuming you did them already!)
+- for the continuous ones, add effect size (Cohen's d and "probability of superiority") to what you already have
+- add a short section on power analysis. Base your analysis on of one of the two continuous tests you calculated. Your question is: how small of an effect could I detect using these Ns and this alpha? (NOTE: your groups will not be equal sizes in the GSS. So you have the option of doing this via simulation or using something like the `pwr` package, which is like what you've learned.)
+- finally, add a second short section on power analysis that estimates the sample size you would need for an imaginary experiment. You pick the minimum interesting effect size, the alpha level, and the power level.
+
+## Models for two-group comparisons
+
+- continuous `~` group
+- binary `~` group
+  - identity
+  - log
+  - log odds
+- count `~` group
+- multinomial `~` group
+
+## Binary outcomes and the Generalized Linear Model
+
+Outcome: graduate degree (yes/no)
+
+Predictor: at least one parent with graduate degree (yes/no)
+
+```{r}
+dgrad <- gss2022 |> 
+  select(degree, madeg, padeg) |> 
+  mutate(grad = if_else(degree == 4, 1, 0),
+           # pmax() works if there's just one missing
+         pardegree = pmax(madeg, padeg, na.rm = TRUE),
+         pargrad = if_else(pardegree == 4, 1, 0)) |> 
+  select(grad, pargrad) |> 
+  drop_na()
+
+table(dgrad$pargrad, dgrad$grad)
+```
+
+## Conditional probabilities
+
+Calculate them and write them down. You will need them!
+
+## Writing the model
+
+$$
+\text{grad}_i = \alpha + \beta(\text{pargrad}_i)
+$$
+
+Or more specifically:
+
+$$
+P(\text{grad}_i =1)= \alpha + \beta(\text{pargrad}_i)
+$$
+
+## Estimating in R
+
+What is family? What is link?
+
+```{r}
+mod1 <- glm(grad ~ pargrad,
+            data = dgrad,
+            family = binomial(link = "identity"))
+
+summary(mod1)
+```
+
+## "Linear probability model"
+
+Treating the outcome as continuous even when it's really not.
+
+```{r}
+mod2 <- lm(grad ~ pargrad,
+            data = dgrad)
+
+summary(mod2)
+```
+
+
+## Thinking about $\beta$
+
+$$
+  \beta = P(\text{grad} = 1 \mid \text{pargrad} = 1) - P(\text{grad} = 1 \mid \text{pargrad} = 0)
+$$
+
+What is the unit of $\beta$? 
+
+
+## Risk ratio
+
+This is just the ratio of conditional probabilities.
+
+$$
+RR = \frac{P(\text{grad} = 1 \mid \text{pargrad} = 1)}{P(\text{grad} = 1 \mid \text{pargrad} = 0)}
+$$
+
+## Writing as a linear model
+
+$$
+  \log(P(\text{grad}_i = 1)) = \alpha + \beta(\text{pargrad}_i)
+$$
+
+Or, equivalently...
+
+$$
+  P(\text{grad}_i = 1) = e^{\alpha + \beta(\text{pargrad}_i)}
+$$
+
+## Probability and log probability
+
+```{r}
+#| echo: false
+
+probs <- tibble(
+  p = seq(.01, .99, .01),
+  lp = log(p)
+)
+
+ggplot(probs,
+       aes(x = p,
+           y = lp)) +
+  geom_line() +
+  theme_light() +
+  labs(x = "Probability",
+       y = "Log probability")
+
+```
+
+
+## Estimating in R
+
+```{r}
+mod3 <- glm(grad ~ pargrad,
+            data = dgrad,
+            family = binomial(link = "log"))
+summary(mod3)
+exp(1.10265)
+```
+
+
+## What is $\beta$ now?
+
+$$
+\begin{align}
+  \beta = \log(P(\text{grad} &= 1 \mid \text{pargrad} = 1)) - \\ \log(P(\text{grad} &= 1 \mid \text{pargrad} = 0))
+\end{align}
+$$
+
+What are the units of $\beta$? How to interpret?
+
+## What are odds?
+
+Probability is...
+
+$$
+\frac{P(y = 1)}{1}
+$$
+
+Odds are...
+
+$$
+\frac{P(y = 1)}{1 - P(y = 1)}
+$$
+
+## Probability and odds
+
+```{r}
+#| echo: false
+
+probs <- tibble(
+  p = seq(.01, .99, .01),
+  odds = p / (1-p),
+  logodds = log(odds)
+)
+
+ggplot(probs,
+       aes(x = p,
+           y = odds)) +
+  geom_line() +
+  labs(x = "Probability",
+       y = "Odds") +
+  theme_light()
+```
+
+[graph]
+
+## Odds ratio
+
+The ratio of two odds:
+
+$$
+OR = \frac{P(y = 1 \mid x=1)}{1 - P(y = 1 \mid x = 1)} \bigg/{\frac{P(y = 1 \mid x=0)}{1 - P(y = 1 \mid x = 0)}}
+$$
+
+## Log odds
+
+$$
+\log\left(\frac{P(y = 1)}{1 - P(y = 1)}\right)
+$$
+
+## Probability and log odds {.smallish}
+
+::::columns
+
+:::column
+
+```{r}
+#| echo: false
+#| fig-asp: .8
+
+ggplot(probs,
+       aes(x = p,
+           y = logodds)) +
+  geom_line(linewidth = 1.2) +
+  labs(x = "Probability",
+       y = "Log odds") +
+  theme_light() +
+  theme(axis.text.x = element_text(size=rel(2)),
+        axis.text.y = element_text(size=rel(2)))
+```
+
+$$
+\log(odds) = \log\left(\frac{p}{1 - p}\right)
+$$
+
+:::
+
+::: column
+```{r}
+#| echo: false
+#| fig-asp: .8
+
+ggplot(probs,
+       aes(x = logodds,
+           y = p)) +
+  geom_line(linewidth = 1.2) +
+  labs(x = "Log Odds",
+       y = "Probability") +
+  theme_light() +
+  theme(axis.text.x = element_text(size=rel(2)),
+        axis.text.y = element_text(size=rel(2)))
+```
+
+$$
+p = \frac{e^{\log(odds)}}{1 + e^{\log(odds)}}
+$$
+:::
+
+::::
+
+## Log odds ratio
+
+The ratio of two log odds (thus, the difference):
+
+$$
+\log(OR) = \\ \log \left[ \frac{P(y = 1 \mid x=1)}{1 - P(y = 1 \mid x = 1)} \right] - \log \left[ \frac{P(y = 1 \mid x=0)}{1 - P(y = 1 \mid x=0)} \right]
+$$
+
+## Writing as a model
+
+$$
+  \log \left( \frac{P(\text{grad}_i = 1)}{1 - P(\text{grad}_i = 1)} \right)= \alpha + \beta(\text{pargrad}_i)
+$$
+
+Or, equivalently...
+
+$$
+  P(\text{grad}_i = 1) = \frac{e^{\alpha + \beta(\text{pargrad}_i)}}{1 + e^{\alpha + \beta(\text{pargrad}_i)}}
+$$
+
+## Estimating in R
+
+[]
+
+## What is $\beta$?
+
+This is just the log odds ratio:
+
+$$
+\beta = \log \left[ \frac{P(y = 1 \mid x=1)}{1 - P(y = 1 \mid x = 1)} \right] - \log \left[ \frac{P(y = 1 \mid x=0)}{1 - P(y = 1 \mid x=0)} \right]
+$$
+
