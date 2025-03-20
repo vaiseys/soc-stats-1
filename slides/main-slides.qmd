@@ -3173,7 +3173,17 @@ $$
 
 ## Estimating in R
 
-[]
+```{r}
+mod4 <- glm(grad ~ pargrad,
+            data = dgrad,
+            family = binomial(link = "logit"))
+```
+
+```{r}
+#| echo: false
+mytidy(mod4)
+```
+
 
 ## What is $\beta$?
 
