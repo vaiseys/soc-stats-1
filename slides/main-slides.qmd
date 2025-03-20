@@ -2627,7 +2627,7 @@ power.t.test(n = 100,
 
 Compare two groups on two binary and two continuous variables. Do hypothesis tests and confidence intervals. State the null hypotheses and the alternatives. Calculate and interpret effect sizes. To receive full credit, don't use the same grouping variable for all four; use at least two different grouping variables.
 
-# Models {.inverse}
+# Bivariate models {.inverse}
 
 ## Models vs. tests
 
@@ -2843,7 +2843,25 @@ Please build on and extend the homework that was due this week. I will count thi
 - add a short section on power analysis. Base your analysis on of one of the two continuous tests you calculated. Your question is: how small of an effect could I detect using these Ns and this alpha? (NOTE: your groups will not be equal sizes in the GSS. So you have the option of doing this via simulation or using something like the `pwr` package, which is like what you've learned.)
 - finally, add a second short section on power analysis that estimates the sample size you would need for an imaginary experiment. You pick the minimum interesting effect size, the alpha level, and the power level.
 
-## Models for two-group comparisons
+## Generalized linear model {.smallish}
+
+The **generalized linear model** takes the relationship between x and y and makes it _linear_ and _additive_. That is, it expresses the relationship between $Y$ and $X$ such that $\alpha$ is a _point_ and $\beta$ is a _distance_.
+
+The **linear predictor** is an additive function of $\alpha$, $\beta$, and $x_i$, usually $\alpha + \beta x_i$. 
+
+## GLM link function
+
+The left-hand side (e.g., $\log P(y_i=1)$ determines the **link function**.) For example, the left-hand side of the t-test as linear model we saw above is just $y_i = \dots$ 
+
+This is called the **identity function** because $f(Y) = Y$. We will see other functions soon.
+
+## GLM family
+
+The other part of the GLM is the **family**. This is the _probability distribution_ we are using for the model. Above, we used the _normal_ (or Gaussian) distribution. This helps us determine the _maximum likelihood_ values of the parameters. 
+
+Don't worry too much about the details of this for now. Just remember that the type of GLM is determined by _link_ and _family_.
+
+## GLMs for two-group comparisons
 
 - continuous `~` group
 - binary `~` group
@@ -2853,7 +2871,7 @@ Please build on and extend the homework that was due this week. I will count thi
 - count `~` group
 - multinomial `~` group
 
-## Binary outcomes and the Generalized Linear Model
+## Binary outcome GLM
 
 Outcome: graduate degree (yes/no)
 
@@ -2869,7 +2887,7 @@ dgrad <- gss2022 |>
   select(grad, pargrad) |> 
   drop_na()
 
-table(dgrad$pargrad, dgrad$grad)
+table(dgrad$pargrad, dgrad$grad) # rows are levels of pargrad
 ```
 
 ## Conditional probabilities
@@ -2896,9 +2914,31 @@ What is family? What is link?
 mod1 <- glm(grad ~ pargrad,
             data = dgrad,
             family = binomial(link = "identity"))
-
-summary(mod1)
 ```
+
+[**Link**: Identity]{.fragment}
+
+[**Family**: binomial (Bernoulli)]{.fragment}
+
+## Using a custom R function
+
+Let's keep the output display simple for this section by creating a simple version of `tidy()`.
+
+```{r}
+mytidy <- function(x) {
+  broom::tidy(x, conf.int = TRUE) |> 
+    select(term, estimate, std.error, conf.low, conf.high)
+}
+```
+
+## Parameter estimates of `mod1`
+
+```{r}
+#| echo: false
+mytidy(mod1)
+```
+
+What do these numbers mean?
 
 ## "Linear probability model"
 
@@ -2907,10 +2947,14 @@ Treating the outcome as continuous even when it's really not.
 ```{r}
 mod2 <- lm(grad ~ pargrad,
             data = dgrad)
-
-summary(mod2)
 ```
 
+```{r}
+#| echo: false
+mytidy(mod2)
+```
+
+What is the link? What is the family? What do these numbers mean?
 
 ## Thinking about $\beta$
 
@@ -2918,16 +2962,29 @@ $$
   \beta = P(\text{grad} = 1 \mid \text{pargrad} = 1) - P(\text{grad} = 1 \mid \text{pargrad} = 0)
 $$
 
-What is the unit of $\beta$? 
+What is the unit of $\beta$?
 
+[Remember that $\beta$ is a _distance_ and that $\alpha$ is a _point_.]{.fragment}
 
 ## Risk ratio
 
-This is just the ratio of conditional probabilities.
+This is just the ratio of conditional probabilities, $P(Y=1 \mid X = x)$.
 
 $$
 RR = \frac{P(\text{grad} = 1 \mid \text{pargrad} = 1)}{P(\text{grad} = 1 \mid \text{pargrad} = 0)}
 $$
+
+:::fragment
+```{r}
+py_x1 <- mean(dgrad$grad[dgrad$pargrad == 1])
+py_x0 <- mean(dgrad$grad[dgrad$pargrad == 0])
+
+rr <-  py_x1 / py_x0
+
+rr
+```
+:::
+
 
 ## Writing as a linear model
 
@@ -2940,6 +2997,8 @@ Or, equivalently...
 $$
   P(\text{grad}_i = 1) = e^{\alpha + \beta(\text{pargrad}_i)}
 $$
+
+Which one of these is properly written as a GLM?
 
 ## Probability and log probability
 
@@ -2968,10 +3027,21 @@ ggplot(probs,
 mod3 <- glm(grad ~ pargrad,
             data = dgrad,
             family = binomial(link = "log"))
-summary(mod3)
-exp(1.10265)
+mytidy(mod3)
 ```
 
+
+::: fragment
+What is $\beta$? Consider this...
+
+```{r}
+exp(mod3$coefficients["pargrad"])
+```
+:::
+
+::: fragment
+$\beta$ here is a **log risk ratio**.
+:::
 
 ## What is $\beta$ now?
 
@@ -2988,13 +3058,13 @@ What are the units of $\beta$? How to interpret?
 Probability is...
 
 $$
-\frac{P(y = 1)}{1}
+\frac{P(Y = 1)}{1}
 $$
 
 Odds are...
 
 $$
-\frac{P(y = 1)}{1 - P(y = 1)}
+\frac{P(Y = 1)}{1 - P(Y = 1)}
 $$
 
 ## Probability and odds
@@ -3017,20 +3087,18 @@ ggplot(probs,
   theme_light()
 ```
 
-[graph]
-
 ## Odds ratio
 
 The ratio of two odds:
 
 $$
-OR = \frac{P(y = 1 \mid x=1)}{1 - P(y = 1 \mid x = 1)} \bigg/{\frac{P(y = 1 \mid x=0)}{1 - P(y = 1 \mid x = 0)}}
+OR = \frac{P(Y = 1 \mid X=1)}{1 - P(Y = 1 \mid X = 1)} \bigg/{\frac{P(Y = 1 \mid X=0)}{1 - P(Y = 1 \mid X = 0)}}
 $$
 
 ## Log odds
 
 $$
-\log\left(\frac{P(y = 1)}{1 - P(y = 1)}\right)
+\log\left(\frac{P(Y = 1)}{1 - P(Y = 1)}\right)
 $$
 
 ## Probability and log odds {.smallish}
@@ -3088,7 +3156,7 @@ $$
 The ratio of two log odds (thus, the difference):
 
 $$
-\log(OR) = \\ \log \left[ \frac{P(y = 1 \mid x=1)}{1 - P(y = 1 \mid x = 1)} \right] - \log \left[ \frac{P(y = 1 \mid x=0)}{1 - P(y = 1 \mid x=0)} \right]
+\log(OR) = \\ \log \left[ \frac{P(Y = 1 \mid X=1)}{1 - P(Y = 1 \mid X = 1)} \right] - \log \left[ \frac{P(Y = 1 \mid X=0)}{1 - P(Y = 1 \mid X=0)} \right]
 $$
 
 ## Writing as a model
@@ -3112,6 +3180,15 @@ $$
 This is just the log odds ratio:
 
 $$
-\beta = \log \left[ \frac{P(y = 1 \mid x=1)}{1 - P(y = 1 \mid x = 1)} \right] - \log \left[ \frac{P(y = 1 \mid x=0)}{1 - P(y = 1 \mid x=0)} \right]
+\beta = \log \left[ \frac{P(Y = 1 \mid X=1)}{1 - P(Y = 1 \mid X = 1)} \right] - \log \left[ \frac{P(Y = 1 \mid X=0)}{1 - P(Y = 1 \mid X=0)} \right]
 $$
 
+# Count models {.inverse}
+
+## The Poisson distribution
+
+## Poisson GLM
+
+## Estimating in R
+
+# Models with two predictors {.inverse}
