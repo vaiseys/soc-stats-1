@@ -2843,7 +2843,7 @@ Please build on and extend the homework that was due this week. I will count thi
 - add a short section on power analysis. Base your analysis on of one of the two continuous tests you calculated. Your question is: how small of an effect could I detect using these Ns and this alpha? (NOTE: your groups will not be equal sizes in the GSS. So you have the option of doing this via simulation or using something like the `pwr` package, which is like what you've learned.)
 - finally, add a second short section on power analysis that estimates the sample size you would need for an imaginary experiment. You pick the minimum interesting effect size, the alpha level, and the power level.
 
-## Generalized linear model {.smallish}
+## Generalized linear model
 
 The **generalized linear model** takes the relationship between x and y and makes it _linear_ and _additive_. That is, it expresses the relationship between $Y$ and $X$ such that $\alpha$ is a _point_ and $\beta$ is a _distance_.
 
@@ -2853,7 +2853,7 @@ The **linear predictor** is an additive function of $\alpha$, $\beta$, and $x_i$
 
 The left-hand side (e.g., $\log P(y_i=1)$ determines the **link function**.) For example, the left-hand side of the t-test as linear model we saw above is just $y_i = \dots$ 
 
-This is called the **identity function** because $f(Y) = Y$. We will see other functions soon.
+This is called the **identity function** because $f(\mathbb{E}(Y)) = \mathbb{E}(Y)$. We will see other functions soon.
 
 ## GLM family
 
@@ -2897,7 +2897,7 @@ Calculate them and write them down. You will need them!
 ## Writing the model
 
 $$
-\text{grad}_i = \alpha + \beta(\text{pargrad}_i)
+\mathbb{E}(\text{grad}_i) = \alpha + \beta(\text{pargrad}_i)
 $$
 
 Or more specifically:
@@ -2916,7 +2916,7 @@ mod1 <- glm(grad ~ pargrad,
             family = binomial(link = "identity"))
 ```
 
-[**Link**: Identity]{.fragment}
+[**Link**: identity]{.fragment}
 
 [**Family**: binomial (Bernoulli)]{.fragment}
 
@@ -2926,8 +2926,8 @@ Let's keep the output display simple for this section by creating a simple versi
 
 ```{r}
 mytidy <- function(x) {
-  broom::tidy(x, conf.int = TRUE) |> 
-    select(term, estimate, std.error, conf.low, conf.high)
+  broom::tidy(x) |> 
+    select(term, estimate, std.error)
 }
 ```
 
@@ -2939,6 +2939,10 @@ mytidy(mod1)
 ```
 
 What do these numbers mean?
+
+:::{.callout-note .absolute style="top: 65%;"}
+Don't worry right now about were the standard errors come from. You probably get the general idea from before but we will talk about that a bit later.
+:::
 
 ## "Linear probability model"
 
@@ -3095,6 +3099,10 @@ $$
 OR = \frac{P(Y = 1 \mid X=1)}{1 - P(Y = 1 \mid X = 1)} \bigg/{\frac{P(Y = 1 \mid X=0)}{1 - P(Y = 1 \mid X = 0)}}
 $$
 
+:::{.callout-note .absolute style="top: 60%;"}
+The two odds ratios remain the same regardless of the coding of $Y$ and $X$ or which is considered the outcome vs. the predictor. This makes them attractive when there is no "natural" value for 0 vs. 1 (e.g., Democrat vs. Republican) and/or no "natural" predictor.
+:::
+
 ## Log odds
 
 $$
@@ -3192,6 +3200,18 @@ This is just the log odds ratio:
 $$
 \beta = \log \left[ \frac{P(Y = 1 \mid X=1)}{1 - P(Y = 1 \mid X = 1)} \right] - \log \left[ \frac{P(Y = 1 \mid X=0)}{1 - P(Y = 1 \mid X=0)} \right]
 $$
+
+:::{.callout-note .absolute style="top: 60%;"}
+The log odds ratio is always the same number (except for a change in sign) regardless of the coding of $Y$ and $X$ or which is considered the outcome vs. the predictor. So odds ratios of 4 and .25 become log odds ratios of 1.39 and -1.39.
+:::
+
+
+## Binary GLM summary {.smaller}
+
+|Term             |Identity              |Log              |Logit           |
+|-----------------|----------------------|-----------------|----------------|
+| $\alpha$        | probability          | log prob.       | log odds       |
+| $\beta$         | diff. in prob.       | log risk ratio  | log odds ratio |
 
 # Count models {.inverse}
 
