@@ -3206,19 +3206,371 @@ The log odds ratio is always the same number (except for a change in sign) regar
 :::
 
 
-## Binary GLM summary {.smaller}
+## Binary GLM summary {.smallish}
 
 |Term             |Identity              |Log              |Logit           |
 |-----------------|----------------------|-----------------|----------------|
 | $\alpha$        | probability          | log prob.       | log odds       |
 | $\beta$         | diff. in prob.       | log risk ratio  | log odds ratio |
 
+:::{.callout-tip .absolute style="top: 60%;"}
+Linear probability models (identity link) and logistic regression models (logit link) are both common in sociology. The main value of the former is **simplicity** and the main value of the latter is **realism**. As we'll see later, sometimes the LPM can create predicted probabilities below 0 or above 1, which is suboptimal!
+:::
+
+# Likelihood: a digression {.inverse}
+
+## Maximum likelihood
+
+We have learned what the units are of $\alpha$ and $\beta$, but let's talk about how we get these numbers, which is related to the idea of **maximum likelihood**.
+
+## Probability
+
+When we talk about the probability of an event, this is inherently _forward looking_. 
+
+For example, what is the probability of getting exactly two heads on three flips of a fair coin (i.e., when the coin's probability of flipping heads is $\pi = .5$)?
+
+[This probability is $3/8$, or 37.5 percent.]{.fragment}
+
+## Likelihood
+
+Likelihood, by contrast, is _backward looking_. 
+
+It starts with events that have already happened and reasons back to the parameters that generated them. For example, what is the _most likely_ value of $\pi$ for a coin that actually flipped heads two out of three times?
+
+[The _most likely_ value of $\pi$ in this case is $2/3$ or 66.7%.]{.fragment}
+
+## Probability vs. likelihood
+
+We ask different conditional questions depending on **what we have** and **what we don't**.
+
+For probability, we ask: _What is the probability of a data distribution **given** the model_? 
+
+For likelihood, we ask: _What is the likelihood of a model **given** a data distribution_?
+
+## Maximum likelihood estimates
+
+We've already been using likelihood without realizing it. For example, if we find that 560 people out of 1000 support abortion rights in our data, we infer that $p = .56$ is the _most likely_ value of the population parameter.
+
+Sometimes people think MLE is fancy. But $\bar{x} = \left( \sum_i^n  x_i\right) / n$ is the maximum likelihood estimate of $\mu$.
+
+## Example
+
+To get a flavor of how this works, assume we want to estimate the proportion of current sociology PhD students who have at least one parent with a graduate degree. Let's say we take a random sample and find that 7 out of 10 do. 
+
+The MLE estimate is easy: $\hat{\pi} = .7$. But how much better is this estimate than others we might consider?
+
+## Binomial distribution {.smaller}
+
+```{r}
+#| echo: false
+
+bd <- tibble(
+  k = 0:10,
+  p = dbinom(0:10, 10, .7)
+)
+
+ggplot(bd,
+       aes(x = k,
+           y = p)) +
+  geom_col() +
+  scale_x_continuous(breaks = 0:10) +
+  theme_light() +
+  labs(x = "k (# of \"successes\")",
+       y = expression(paste("P(X = k) when ", pi, " = .7")))
+
+```
+
+This is a probability distribution, like others we have seen, with given parameters ($\pi = .7$  and $n = 10$). It is _forward looking_ in the sense that it shows the probability of what might happen given those parameters.
+
+## Likelihood {.smallish}
+
+Now reverse it: we _actually saw_ 7 out of 10 "successes." What is the _likelihood_ of seeing 7 _if the value of $\pi$ is actually .7_?
+
+```{r}
+dbinom(x = 7, size = 10, p = .7)
+```
+
+:::fragment
+But wait! What if the actual value of $\pi$ is .65? How likely is it that we'd see 7 out of 10 successes?
+
+```{r}
+dbinom(x = 7, size = 10, p = .65)
+```
+
+There's not much difference. In fact, $\pi = .7$ is only about 5.8% _more likely_ to have produced the observed data than $\pi = .65$.
+:::
+
+## Grid approximation {.smaller}
+
+::::columns
+
+:::column
+To find the MLE of our data (7 out of 10 successes), we can do a fancy version of "guess and check" called **grid approximation**. Let's check the likelihood of seeing 7 out of 10 for all the values of $\pi$ in increments of .05.
+:::
+
+:::column
+```{r}
+mygrid <- tibble(
+  p = seq(from = .05, to = .95, by = .05),
+  l = dbinom(x = 7, size = 10, prob = p)
+)
+
+mygrid
+```
+:::
+
+::::
+
+## Plot the grid
+
+```{r}
+#| echo: false
+
+ggplot(mygrid,
+       aes(x = p,
+           y = l)) +
+  geom_line() +
+  geom_point() +
+  theme_light() +
+  scale_x_continuous(breaks = seq(0, 1, .1),
+                     limits = c(0, 1)) +
+  labs(x = expression(pi),
+       y = "Likelihood of k = 7")
+
+```
+
+## Sample size
+
+Consider the following scenarios: 
+
+* 7 out of 10
+* 28 out of 40 
+* 70 out of 100 
+
+Would the likelihoods be different in these situations?
+
+## First plot
+
+```{r}
+#| echo: false
+
+mygrids2 <-
+  expand_grid(n = c(10, 40, 100),
+              p = seq(.05, .95, .05)) |> 
+  mutate(x = .7 * n,
+         l = dbinom(x, n, p))
+
+ggplot(mygrids2,
+       aes(x = p,
+           y = l,
+           group = factor(n),
+           color = factor(n))) +
+  geom_line() +
+  geom_point() +
+  theme_light() +
+  scale_x_continuous(breaks = seq(0, 1, .1),
+                     limits = c(0, 1)) +  
+  labs(x = expression(pi),
+       y = "Likelihood of k = 7",
+       color = "samp. size")
+
+```
+
+## Finer grid
+
+```{r}
+#| echo: false
+
+mygrids2 <-
+  expand_grid(n = c(10, 40, 100),
+              p = seq(.01, .99, .01)) |> 
+  mutate(x = .7 * n,
+         l = dbinom(x, n, p))
+
+ggplot(mygrids2,
+       aes(x = p,
+           y = l,
+           group = factor(n),
+           color = factor(n))) +
+  geom_line() +
+  geom_point() +
+  theme_light() +
+  scale_x_continuous(breaks = seq(0, 1, .1),
+                     limits = c(0, 1)) +
+  labs(x = expression(pi),
+       y = "Likelihood of k = 7",
+       color = "samp. size")
+
+```
+
+## Scaled without dots
+
+```{r}
+#| echo: false
+
+mygrids2 <-
+  expand_grid(n = c(10, 40, 100),
+              p = seq(.01, .99, .01)) |> 
+  mutate(x = .7 * n,
+         l = dbinom(x, n, p)) |> 
+  mutate(maxl = max(l), .by = n) |> 
+  mutate(sl = l / maxl)
+
+ggplot(mygrids2,
+       aes(x = p,
+           y = sl,
+           group = factor(n),
+           color = factor(n))) +
+  geom_line(linewidth = 1.2) +
+  theme_light() +
+  scale_x_continuous(breaks = seq(0, 1, .1),
+                     limits = c(0, 1)) +
+  labs(x = expression(pi),
+       y = "Scaled likelihood of k = 7",
+       color = "samp. size")
+
+```
+
+## Likelihood distributions
+
+These **likelihood distributions** can be used to construct confidence intervals, though they rarely are used directly in that way in practice. But the principle of MLE and how it related to sample size should be pretty clear from this exercise.
+
+## Likelihood is rowwise!
+
+Check out `extras\rowwise-likelihoods.R` for a demo.
+
 # Count models {.inverse}
 
 ## The Poisson distribution
 
+**Count variables** are discrete (integers) and positive numeric variables. We count things like speeding tickets, friends, published papers, visitors to a coffee shop in an hour, or even income (dollars per year).
+
+The simplest distribution to deal with count data is the **Poisson distribution**. This distribution has one parameter, $\lambda$, which determines the mean ($\lambda$) and the variance (also $\lambda$).
+
+## Three values of $\lambda$
+
+```{r}
+#| echo: false
+
+pd <- expand_grid(
+  lambda = c(1.2, 2.3, 3.5),
+  k = 0:12) |> 
+  mutate(p = dpois(k, lambda))
+
+ggplot(pd,
+       aes(x = k,
+           y = p,
+           color = factor(lambda),
+           group = factor(lambda))) +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(breaks = 0:12) +
+  theme_light() +
+  labs(color = expression(lambda))
+
+```
+
+## Poisson PDF
+
+$$
+  P(X = k) = \frac{\lambda^k e^{-\lambda}}{k!}, \quad k = 0, 1, 2, \ldots
+$$
+
+Take a moment. What's the probability of getting exactly 3 visitors to a coffee shop in an hour if $\lambda = 3$ visitors per hour? [(It's about 22.4%.)]{.fragment}
+
 ## Poisson GLM
 
-## Estimating in R
+Poisson GLMs use the _log link_ and the _Poisson distribution_. The basic formula looks like this:
+
+$$
+  \log(y_i) = \alpha + \beta x_i
+$$
+
+Thus, for each respondent $i$, $\lambda_i = \alpha + \beta x_i$.
+
+## TV hours {.smallish}
+
+Let's model TV hours as a function of having a college degree for those who are employed full time. First, here's the distribution.
+
+```{r}
+#| echo: false
+
+d <- gss2022 |> 
+  select(tvhours, degree, wrkstat) |>
+  drop_na() |>
+  filter(wrkstat == 1) |> 
+  mutate(college = if_else(degree >= 3, 1, 0))
+
+ggplot(d,
+       aes(x = tvhours,
+           y = after_stat(density))) +
+  geom_histogram(binwidth = 1,
+                 color = "white") +
+  theme_light()
+
+```
+
+## Estimating the Poisson GLM
+
+```{r}
+poismod <- glm(tvhours ~ college,
+               data = d,
+               family = poisson(link="log"))
+```
+
+```{r}
+#| echo: false
+
+mytidy(poismod)
+```
+
+What are $\alpha$ and $\beta$?
+
+## Doing it manually
+
+```{r}
+#| echo: false
+
+gss2022 |> 
+  select(sibs, attend) |> 
+  drop_na() |> 
+  mutate(church = if_else(attend >= 7, "weekly", "less")) |> 
+  summarize(numsibs = mean(sibs), .by = church) |> 
+  tt(digits = 3)
+
+```
+
+:::fragment
+$$
+  \log(sibs_i) = 1.20 + .174(college_i)
+$$
+:::
+
+:::{.fragment .callout-tip .absolute style="top: 65%;"}
+## Challenge\!
+
+According to this model, what is the probability that someone with (and without) a college degree watches 4 or more hours of TV per day?
+:::
+
+```{r}
+#| include: false
+
+1 - (dpois(0:3, 3.31) |> sum()) # BA
+1 - (dpois(0:3, 3.94) |> sum()) # < BA
+```
+
+
+## Homework {.smallish}
+
+Estimate and interpret the coefficients of 7 models with a single two-group predictor. Use the following:
+
+- three binary models (one LPM, one log, one logit)
+- two "linear regressions" (Gaussian GLMs)
+- two count models
+
+For one binary, one linear, and one count model, manually calculate the log likelihood and compare to the results of the `logLik()` function. Don't worry too much about visualizations this week. If something's useful, fine. But don't force it.
+
+
+# Three groups {.inverse}
 
 # Models with two predictors {.inverse}
