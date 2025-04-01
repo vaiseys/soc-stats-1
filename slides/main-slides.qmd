@@ -897,7 +897,7 @@ lln_demo <- tibble(
 ggplot(lln_demo,
        aes(x = samp_num,
            y = cp)) +
-  geom_line(color="#CC0000") +
+  geom_line(color = "#CC0000") +
   geom_hline(yintercept = .594,
              linetype = "dotted") +
   labs(x = "",
@@ -2906,6 +2906,10 @@ $$
 P(\text{grad}_i =1)= \alpha + \beta(\text{pargrad}_i)
 $$
 
+:::{.callout-note .absolute style="top: 75%; width: 100%;"}
+Here $\mathbb{E}(y_i)$ means "the expected value of $y_i$."
+:::
+
 ## Estimating in R
 
 What is family? What is link?
@@ -3515,7 +3519,7 @@ ggplot(d,
 ```{r}
 poismod <- glm(tvhours ~ college,
                data = d,
-               family = poisson(link="log"))
+               family = poisson(link = "log"))
 ```
 
 ```{r}
@@ -3542,7 +3546,7 @@ gss2022 |>
 
 :::fragment
 $$
-  \log(sibs_i) = 1.20 + .174(college_i)
+  \log(sibs_i) = 1.20 + .174(weekly_i)
 $$
 :::
 
@@ -3571,6 +3575,215 @@ Estimate and interpret the coefficients of 7 models with a single two-group pred
 For one binary, one linear, and one count model, manually calculate the log likelihood and compare to the results of the `logLik()` function. Don't worry too much about visualizations this week. If something's useful, fine. But don't force it.
 
 
-# Three groups {.inverse}
+# Three or more groups {.inverse}
 
-# Models with two predictors {.inverse}
+## Refresher: two groups
+
+The comparisons we've seen so far are of two groups, which we have generally coded as $X=0$ and $X=1$ (e.g., college degree or not). So, for a difference in means (a.k.a. a t-test) we have the formula:
+
+$$
+\begin{align}
+  y_i &\sim \cal{N}(\mu_i, \sigma) \\
+  \mu_i &= \alpha + \beta x_i
+\end{align}
+$$
+
+The $X = 0$ group is called the **reference category** or **omitted category** because its expected value is equal to $\alpha$.
+
+## Three groups {.smallish}
+
+The logic is similar when we have three groups. Imagine we have the personal incomes of three groups: less than high school, high school, college.
+
+```{r}
+#| output-location: column
+
+incdata <- gss2022 |>
+  # full-time only
+  filter(wrkstat == 1) |> 
+  # educ for later
+  select(realrinc, educ, degree) |> 
+  drop_na() |> 
+  mutate(
+    edlvl = 
+      case_match(degree,
+                 0      ~ "no degree",
+                 c(1,2) ~ "high school",
+                 c(3,4) ~ "BA+"))
+
+incdata |> 
+  summarize(ybar = mean(realrinc), 
+            .by = edlvl) |> 
+  tt(digits = 5)
+
+```
+
+## Formula
+
+Writing these three means as an equation, we get:
+
+$$
+\begin{align}
+  y_i &\sim \cal{N}(\mu_i, \sigma) \\
+  \mu_i &= \alpha + \beta_1 (HS_i) + \beta_2(BA_i)
+\end{align}
+$$
+
+Now the "no degree" group is the reference category. 
+
+## Initial results {.smallish}
+
+Here are the results.
+
+```{r}
+inc3mod <- lm(realrinc ~ edlvl, data = incdata)
+mytidy(inc3mod)
+```
+
+Uh oh! We got a different reference category from what we planned. With a `<chr>` variable, R will pick the alphabetically lowest value as the reference category. We can change that be making it an **ordered factor**.
+
+## Ordering {.smallish}
+
+```{r}
+incdata <- incdata |> 
+  mutate(edfac = factor(
+    edlvl,
+    levels = c("no degree", "high school", "BA+"), # actual values
+    labels = c("none", "HS", "BA+"), # will be shown
+    ordered = TRUE
+  )
+  )
+
+glimpse(incdata)
+```
+
+
+## More results {.smallish}
+
+```{r}
+inc3mod <- lm(realrinc ~ edfac, data = incdata)
+mytidy(inc3mod)
+```
+
+This is annoying because when we have an ordered factor, R defaults to "polynomial contrasts," which you _really_ don't need to worry about (`.L` means "linear", `.Q` means "quadratic", etc.). You can solve this by asking for "treatment contrasts" as follows:
+
+```{r}
+contrasts(incdata$edfac) <- "contr.treatment"
+```
+
+
+## Final results {.smallish}
+
+```{r}
+inc3mod <- lm(realrinc ~ edfac, data = incdata)
+mytidy(inc3mod)
+```
+
+Note that we could use any reference category we want. The reference value is $\alpha$, which is always a _point_ and is the expected value of the omitted (or reference) group. The $\beta$ values are _distances_ from that reference point to the mean of the relevant group. This is the same logic as two groups!
+
+## Same for all GLMs
+
+```{r}
+inc3pois <- glm(round(realrinc, 0) ~ edfac, # rounding to nearest dollar
+                data = incdata, 
+                family = poisson(link = "log"))
+mytidy(inc3pois)
+```
+
+The fundamental ideas are no different outside of the identity/Gaussian GLM. The alpha is still a point and the betas are still distances, just in different units.
+
+## Joint significance {.smaller}
+
+One tricky thing with three or more groups is that we can't look at a single beta coefficient to tell if the group differences are significantly different from zero. We can compare the fit of the **null model** to the fit of the **fitted model**. The null hypothesis here is that $\beta_1 = \beta_2 = 0$ (or that all groups have the same mean).
+
+```{r}
+inc3onemean <- lm(realrinc ~ 1, data = incdata) # null model
+anova(inc3onemean, inc3mod)
+```
+
+This result be exactly the same regardless of which category is chosen as the reference.
+
+:::callout-tip
+Don't worry about the F-statistic or sum of squares here. This is for **one-way ANOVA** (analysis of variance). As you'll see later, this type of comparison generalizes far beyond one type of model.
+:::
+
+# Numeric predictors {.inverse}
+
+## Groups {.smallish}
+
+So far on the right-hand-side (RHS) of our models, we have had **indicators** of (or **dummy variables** representing) one, two, or three expectations related to discrete groups. Extending this to more groups is pretty easy.
+
+:::fragment
+We might keep extending the logic of group comparison. `degree`, for example, has 5 distinct levels in the GSS. But why stop there? The `educ` variable has (up to) 21 levels!
+:::
+
+## A bridge too far {.smaller}
+
+::::columns
+
+:::column
+
+```{r}
+summarize(incdata, freq = n(), 
+          .by = educ) |> 
+  arrange(educ)
+```
+
+:::
+:::column
+
+```{r}
+edmod1 <- lm(realrinc ~ factor(educ), # dummies
+             data = incdata)
+mytidy(edmod1)
+```
+
+:::
+::::
+
+## What's wrong?
+
+```{r}
+#| echo: false
+
+# set up prediction vector (valid levels of education in data)
+preds <- tibble(
+  educ = unique(incdata$educ)
+) |> 
+  arrange(educ)
+
+# get predictions from the model
+preds$yhat <- predict(edmod1, newdata = preds)
+
+ggplot(preds,
+       aes(x = educ,
+           y = yhat)) +
+  geom_line(alpha = .3) +
+  geom_point(color = "white",
+             size = 5) +
+  geom_point(size = 3,
+             shape = 1) +
+  scale_x_continuous(breaks = 0:20) +
+  theme_light()
+
+```
+
+## [Outline] {.smaller}
+
+- from discrete means to lines
+- OLS as ML estimator (old slides)
+- correlation is scaled bivariate regression
+- functional form ("multinomial", stepwise, quadratic, linear)
+- model selection with LRT
+  - saturated vs. restricted models
+
+- application of linear fits to GLMs (e.g., "linear in the logit")
+- two binary predictors (with -> without interactions)
+- model selection again
+
+- tabular measures of association as count models
+
+
+
+
+
+
