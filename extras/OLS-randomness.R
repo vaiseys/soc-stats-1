@@ -1,3 +1,4 @@
+# relies on slide-based dependencies...
 
 ggplot(incdata,
        aes(x = educ,

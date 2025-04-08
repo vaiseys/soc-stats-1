@@ -3770,9 +3770,8 @@ ggplot(preds,
 ## [Outline] {.smaller}
 
 - from discrete means to lines
-- OLS as ML estimator (old slides)
-- correlation is scaled bivariate regression
-- functional form ("multinomial", stepwise, quadratic, linear)
+- functional form ("multinomial", stepwise, linear)
+- OLS as ML estimator (old slides; don't do matrix algebra)
 - model selection with LRT
   - saturated vs. restricted models
 
@@ -3780,6 +3779,7 @@ ggplot(preds,
 - two binary predictors (with -> without interactions)
 - model selection again
 
+- correlation is scaled bivariate regression
 - tabular measures of association as count models
 
 
