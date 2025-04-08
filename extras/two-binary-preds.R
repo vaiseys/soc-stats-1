@@ -69,10 +69,6 @@ linreg2 <- lm(polviews ~ weekly + college,
 
 tidy(linreg2) |> select(term, estimate)
 
-## add predictions (didn't use but check em out)
-d$yhat_sat <- predict(linreg)
-d$yhat_res <- predict(linreg2)
-
 ## check likelihoods
 logLik(linreg)
 logLik(linreg2)
@@ -90,29 +86,39 @@ AIC(linreg)
 -2 * as.numeric(logLik(linreg2)) + (2 * 4)
 AIC(linreg2)
 
+# model selection for 
+
 # randomness
-
+## generate fake data
 rdf <- tibble(
-  y = rnorm(4000, 0, 1),
-  weekly = rbinom(4000, 1, .16),
-  college = rbinom(4000, 1, .356)
-)
+  weekly = rbinom(4000, 1, .16),             # fake weekly variable
+  college = rbinom(4000, 1, .356),           # fake college variable
+  pcons = .31 + (0 * weekly) + (0 * college) # no effect on prob. conserv.
+) |> 
+  rowwise() |> 
+  mutate(conserv = rbinom(1, 1, pcons)) # random answer (31% chance!)
 
-rm1 <- lm(y ~ weekly + college,
-          data = rdf)
+## estimate models
+rm_sat <- glm(conserv ~ weekly * college,
+              data = rdf,
+              family = binomial(link = "logit"))
 
-rm2 <- lm(y ~ weekly * college,
-          data = rdf)
+rm_res <- glm(conserv ~ weekly + college,
+              data = rdf,
+              family = binomial(link = "logit"))
 
-rm0 <- lm(y ~ 1,
-          data = rdf)
+rm_null <- glm(conserv ~ 1,
+              data = rdf,
+              family = binomial(link = "logit"))
 
-logLik(rm0)
-logLik(rm1)
-logLik(rm2)
+## likelihood always gets better with more params
+logLik(rm_null)
+logLik(rm_res)
+logLik(rm_sat)
 
-AIC(rm0, rm1, rm2)
-anova(rm0, rm1, rm2, test = "Chisq")
+## AIC (lower = better) and LRT (null hypothesis betas are zero)
+AIC(rm_null, rm_res, rm_sat)
+anova(rm_null, rm_res, rm_sat, test = "LRT")
 
 
 
