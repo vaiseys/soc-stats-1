@@ -20,9 +20,24 @@ m1 <- glm(count ~ factor(degree) + factor(region),
           family = poisson(),
           data = dcounts)
 
+dcounts$yhat_ind = predict(m1, type = "response")
+
+ggplot(dcounts,
+       aes(x = yhat_ind,
+           y = count)) +
+  geom_point()
+
 m2 <- glm(count ~ factor(degree) * factor(region),
           family = poisson(),
           data = dcounts)
+
+dcounts$yhat_notind = predict(m1, type = "response")
+
+ggplot(dcounts,
+       aes(x = yhat_notind,
+           y = count)) +
+  geom_point()
+
 
 chisq.test(t)
 anova(m1, m2, test = "Rao")
